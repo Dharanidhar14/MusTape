@@ -22,7 +22,10 @@ import {
   Upload
 } from "lucide-react";
 import Image from "next/image";
-import { ChangeEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { BrandLogo } from "@/components/brand-logo";
+import { EndingFooter } from "@/components/ending-footer";
+import { ExternalMediaEmbed } from "@/components/external-media-embed";
 import { LocalAudioPlayer } from "@/components/local-audio-player";
 import { ReceiverExperience } from "@/components/receiver-experience";
 import { Reel } from "@/components/reel";
@@ -30,8 +33,10 @@ import {
   createTape,
   buildShareUrl,
   extractSpotifyTrackId,
+  extractYouTubeVideoId,
   newClientId,
   rituals,
+  updateTape,
   validateAudioFile,
   type ComposerDraft,
   type ComposerSong,
@@ -59,10 +64,24 @@ export function MusTapeApp() {
   const [reelsActive, setReelsActive] = useState(false);
   const [error, setError] = useState("");
   const [shareLink, setShareLink] = useState("");
+  const [savedShareId, setSavedShareId] = useState("");
   const [copied, setCopied] = useState(false);
   const [isSealing, setIsSealing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const shouldReduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem("mustape-theme");
+    if (savedTheme === "light" || savedTheme === "dark") {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.body.dataset.theme = theme;
+    window.localStorage.setItem("mustape-theme", theme);
+  }, [theme]);
 
   const currentSong = draft.songs[activeSong];
   const previewTape = useMemo<SavedTape>(() => ({
@@ -70,7 +89,7 @@ export function MusTapeApp() {
     shareId: "preview",
     title: draft.title || "Untitled tape",
     recipient: draft.recipient || "Recipient",
-    inscription: draft.inscription || "The inscription will appear here when the tape is opened.",
+    inscription: draft.inscription || "A note for them will appear here when the tape is opened.",
     senderNote: draft.senderNote,
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
@@ -84,6 +103,19 @@ export function MusTapeApp() {
           memory: song.memory,
           spotifyUrl: song.spotifyUrl,
           spotifyTrackId: song.spotifyTrackId,
+          embedUrl: song.embedUrl
+        };
+      }
+
+      if (song.type === "youtube") {
+        return {
+          id: song.clientId,
+          type: "youtube",
+          title: song.title,
+          artist: song.artist,
+          memory: song.memory,
+          youtubeUrl: song.youtubeUrl,
+          youtubeVideoId: song.youtubeVideoId,
           embedUrl: song.embedUrl
         };
       }
@@ -113,21 +145,35 @@ export function MusTapeApp() {
   function addSpotifySong() {
     setError("");
     const trackId = extractSpotifyTrackId(spotifyUrl);
-    if (!trackId) {
-      setError("Paste a full Spotify track link before placing it on the tape.");
+    const youtubeVideoId = extractYouTubeVideoId(spotifyUrl);
+    let song: ComposerSong;
+
+    if (trackId) {
+      song = {
+        clientId: newClientId(),
+        type: "spotify",
+        title: "Spotify Track",
+        artist: "",
+        memory: "",
+        spotifyUrl: spotifyUrl.trim(),
+        spotifyTrackId: trackId,
+        embedUrl: `https://open.spotify.com/embed/track/${trackId}`
+      };
+    } else if (youtubeVideoId) {
+      song = {
+        clientId: newClientId(),
+        type: "youtube",
+        title: "YouTube Track",
+        artist: "",
+        memory: "",
+        youtubeUrl: spotifyUrl.trim(),
+        youtubeVideoId,
+        embedUrl: `https://www.youtube.com/embed/${youtubeVideoId}`
+      };
+    } else {
+      setError("Paste a valid Spotify track link, Spotify URI, or YouTube link before placing it on the tape.");
       return;
     }
-
-    const song: ComposerSong = {
-      clientId: newClientId(),
-      type: "spotify",
-      title: `Spotify track ${trackId.slice(0, 6)}`,
-      artist: "",
-      memory: "",
-      spotifyUrl: spotifyUrl.trim(),
-      spotifyTrackId: trackId,
-      embedUrl: `https://open.spotify.com/embed/track/${trackId}`
-    };
 
     setDraft((current) => ({ ...current, songs: [...current.songs, song] }));
     setActiveSong(draft.songs.length);
@@ -206,7 +252,7 @@ export function MusTapeApp() {
   function validateDraft() {
     if (!draft.recipient.trim()) return "Add the recipient before sealing the tape.";
     if (!draft.title.trim()) return "Give this memory a title before sealing it.";
-    if (!draft.inscription.trim()) return "Write an inscription before sealing the tape.";
+    if (!draft.inscription.trim()) return "Write a note for them before sealing the tape.";
     if (!draft.songs.length) return "No pulse has been placed yet.";
     return "";
   }
@@ -222,7 +268,8 @@ export function MusTapeApp() {
 
     setIsSealing(true);
     try {
-      const result = await createTape(draft);
+      const result = savedShareId ? await updateTape(savedShareId, draft) : await createTape(draft);
+      setSavedShareId(result.tape.shareId);
       setShareLink(result.shareUrl);
       setPreviewOpen(true);
     } catch (sealError) {
@@ -275,21 +322,16 @@ export function MusTapeApp() {
   }
 
   return (
-    <main data-theme={theme} className="min-h-screen overflow-x-hidden text-ink-800">
-      <section className="paper-grain cinematic-room min-h-screen px-5 py-5 sm:px-8 lg:px-10">
-        <div className="mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-7xl flex-col">
+    <main data-theme={theme} className="min-h-screen w-full overflow-x-hidden text-ink-800">
+      <section className="paper-grain cinematic-room min-h-[112vh] px-5 py-6 sm:px-8 sm:py-7 lg:px-10">
+        <div className="mx-auto flex min-h-[calc(112vh-3rem)] w-full max-w-[84rem] flex-col">
           <header className="relative z-10 flex items-center justify-between gap-4">
-            <a href="#compose" className="group flex items-center gap-3 rounded-full text-sm text-ink-600 transition hover:text-ink-900">
-              <span className="grid h-10 w-10 place-items-center rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.72)] shadow-insetpaper">
-                <Music2 aria-hidden className="h-4 w-4" />
-              </span>
-              <span className="font-display text-xl tracking-normal text-ink-900">MusTape</span>
-            </a>
+            <BrandLogo />
 
-            <nav aria-label="Primary" className="hidden items-center gap-7 text-sm text-ink-500 md:flex">
-              <a className="transition hover:text-ink-900" href="#compose">Compose</a>
-              <a className="transition hover:text-ink-900" href="#ritual">Ritual</a>
-              <a className="transition hover:text-ink-900" href="#seal">Seal</a>
+            <nav aria-label="Primary" className="hidden items-center gap-8 text-sm text-ink-500 md:flex">
+              <a className="rounded-full px-1 py-2 transition hover:text-ink-900" href="#compose">Compose</a>
+              <a className="rounded-full px-1 py-2 transition hover:text-ink-900" href="#ritual">Ritual</a>
+              <a className="rounded-full px-1 py-2 transition hover:text-ink-900" href="#seal">Seal</a>
             </nav>
 
             <div className="flex items-center gap-2">
@@ -297,7 +339,7 @@ export function MusTapeApp() {
                 type="button"
                 aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
                 onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                className="touch-target grid rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.72)] text-ink-600 transition hover:border-brass hover:text-ink-900"
+                className="button-lift icon-button rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.72)] text-ink-600 hover:border-brass hover:text-ink-900"
               >
                 {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </button>
@@ -305,15 +347,15 @@ export function MusTapeApp() {
                 type="button"
                 onClick={sealTape}
                 disabled={isSealing}
-                className="touch-target inline-flex items-center gap-2 rounded-full bg-ink-900 px-4 text-sm text-paper-100 transition hover:bg-rosewood disabled:cursor-not-allowed disabled:opacity-60"
+                className="button-lift touch-target inline-flex items-center gap-2 rounded-full bg-ink-900 px-5 text-sm text-paper-100 hover:bg-rosewood disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Share2 className="h-4 w-4" />
-                <span className="hidden sm:inline">{isSealing ? "Sealing" : "Seal tape"}</span>
+                <Share2 className="icon-svg h-4 w-4" />
+                <span className="hidden sm:inline">{isSealing ? "Saving" : savedShareId ? "Save tape" : "Seal tape"}</span>
               </button>
             </div>
           </header>
 
-          <div className="relative z-10 grid flex-1 items-center gap-10 py-10 lg:grid-cols-[0.86fr_1.14fr] lg:py-6">
+          <div className="relative z-10 grid flex-1 items-center gap-14 py-16 lg:grid-cols-[0.86fr_1.14fr] lg:py-10">
             <section className="max-w-xl" aria-labelledby="studio-title">
               <motion.p
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
@@ -329,7 +371,7 @@ export function MusTapeApp() {
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.08, duration: 0.7, ease: "easeOut" }}
-                className="font-display text-[clamp(3.45rem,8.4vw,8rem)] leading-[0.9] tracking-normal text-ink-900"
+                className="font-display text-[clamp(3.75rem,9.2vw,9.1rem)] leading-[0.875] tracking-normal text-ink-900"
               >
                 Make a tape that feels held.
               </motion.h1>
@@ -337,19 +379,19 @@ export function MusTapeApp() {
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.16, duration: 0.7, ease: "easeOut" }}
-                className="mt-7 max-w-lg text-lg leading-8 text-ink-500"
+                className="mt-8 max-w-xl text-[1.15rem] leading-9 text-ink-500"
               >
                 Compose a private cassette letter with songs, traces, and a link that opens like an envelope.
               </motion.p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <a href="#compose" className="touch-target inline-flex items-center justify-center gap-3 rounded-full bg-rosewood px-5 text-sm font-medium text-paper-100 transition hover:bg-ink-900">
+              <div className="mt-11 flex flex-col gap-3 sm:flex-row">
+                <a href="#compose" className="button-lift touch-target inline-flex items-center justify-center gap-3 rounded-full bg-rosewood px-6 text-sm font-medium text-paper-100 hover:bg-ink-900">
                   Begin the letter
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="icon-svg h-4 w-4" />
                 </a>
                 <button
                   type="button"
                   onClick={openPreview}
-                  className="touch-target inline-flex items-center justify-center rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.52)] px-5 text-sm font-medium text-ink-700 transition hover:border-brass hover:text-ink-900"
+                  className="button-lift touch-target inline-flex items-center justify-center rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.52)] px-6 text-sm font-medium text-ink-700 hover:border-brass hover:text-ink-900"
                 >
                   Preview
                 </button>
@@ -370,85 +412,92 @@ export function MusTapeApp() {
         </div>
       </section>
 
-      <section id="compose" className="relative bg-[rgb(var(--surface))] px-5 py-24 sm:px-8 lg:px-10">
-        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.78fr_1.22fr]">
+      <section id="compose" className="relative bg-[rgb(var(--surface))] px-5 py-28 sm:px-8 lg:px-10">
+        <div className="mx-auto max-w-[84rem]">
+          <div className="grid gap-14 lg:grid-cols-[0.76fr_1.24fr]">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-ink-400">Composition desk</p>
-            <h2 className="mt-4 max-w-md font-display text-5xl leading-[1.02] text-ink-900">
+            <h2 className="mt-5 max-w-md font-display text-[clamp(3.25rem,5.5vw,4.9rem)] leading-[0.98] text-ink-900">
               Place only what deserves to be remembered.
             </h2>
-            <p className="mt-6 max-w-md leading-7 text-ink-500">
+            <p className="mt-7 max-w-md text-[1.05rem] leading-8 text-ink-500">
               No default songs. No borrowed mood. Paste a Spotify link or upload the sound that belongs here.
             </p>
           </div>
 
-          <div className="grid gap-8">
-            <div className="grid gap-5">
+          <div className="grid gap-7">
+            <div className="grid gap-6">
               <Field label="Recipient" value={draft.recipient} placeholder="Who is this for?" onChange={(value) => updateDraft("recipient", value)} />
               <Field label="Tape title" value={draft.title} placeholder="The night we kept driving" onChange={(value) => updateDraft("title", value)} />
               <label className="block">
-                <span className="mb-2 block text-sm text-ink-500">Inscription</span>
+                <span className="mb-2 block text-sm text-ink-500">A Note for Them</span>
                 <textarea
                   value={draft.inscription}
                   onChange={(event) => updateDraft("inscription", event.target.value)}
                   rows={4}
                   placeholder="Write the line that opens the tape."
-                  className="w-full resize-none rounded-[1.35rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100))] px-5 py-4 text-lg leading-8 text-ink-800 shadow-insetpaper transition placeholder:text-ink-300 focus:border-brass"
+                  className="journal-field w-full resize-none rounded-[1.35rem] border px-6 py-5 text-lg leading-8 text-ink-800"
                 />
               </label>
               <Field label="Sender note" value={draft.senderNote} placeholder="Optional closing trace" onChange={(value) => updateDraft("senderNote", value)} />
             </div>
 
-            <div className="grid gap-4 rounded-[1.6rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.72)] p-5 shadow-insetpaper">
-              <div className="flex items-center gap-3">
-                <Link className="h-5 w-5 text-rosewood" />
-                <h3 className="font-display text-3xl text-ink-900">Add Spotify Song</h3>
-              </div>
-              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                <input
-                  value={spotifyUrl}
-                  onChange={(event) => setSpotifyUrl(event.target.value)}
-                  placeholder="https://open.spotify.com/track/..."
-                  className="h-14 w-full rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-5 text-base text-ink-800 shadow-insetpaper transition placeholder:text-ink-300 focus:border-brass"
-                />
-                <button type="button" onClick={addSpotifySong} className="touch-target inline-flex items-center justify-center gap-2 rounded-full bg-ink-900 px-5 text-sm text-paper-100 transition hover:bg-rosewood">
-                  <Plus className="h-4 w-4" />
-                  Add Spotify Song
-                </button>
-              </div>
-            </div>
+          </div>
+          </div>
 
-            <div className="grid gap-4 rounded-[1.6rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.72)] p-5 shadow-insetpaper">
-              <div className="flex items-center gap-3">
-                <Upload className="h-5 w-5 text-rosewood" />
-                <h3 className="font-display text-3xl text-ink-900">Upload Local Song</h3>
+          <div className="mt-12 grid gap-8">
+            <div className="grid items-stretch gap-5 lg:grid-cols-2">
+              <div className="button-lift grid h-full grid-rows-[auto_1fr_auto] gap-4 rounded-[1.6rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.72)] p-5 shadow-insetpaper">
+                <div className="flex items-center gap-3">
+                  <Upload className="icon-svg h-5 w-5 text-rosewood" />
+                  <h3 className="font-display text-[2rem] leading-none text-ink-900">Upload Local Song</h3>
+                </div>
+                <div className="grid gap-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".mp3,.wav,.m4a,.ogg,audio/*"
+                    onChange={onChooseLocalFile}
+                    className="journal-field min-h-[3.875rem] w-full rounded-full border px-5 py-3 text-sm text-ink-600 file:mr-4 file:rounded-full file:border-0 file:bg-rosewood file:px-4 file:py-2 file:text-sm file:text-paper-100"
+                  />
+                  <input
+                    value={localTitle}
+                    onChange={(event) => setLocalTitle(event.target.value)}
+                    placeholder="Custom song name"
+                    className="journal-field w-full rounded-full border px-6 text-base text-ink-800"
+                  />
+                  <input
+                    value={localArtist}
+                    onChange={(event) => setLocalArtist(event.target.value)}
+                    placeholder="Artist, if remembered"
+                    className="journal-field w-full rounded-full border px-6 text-base text-ink-800"
+                  />
+                  <button type="button" onClick={addLocalSong} className="button-lift touch-target inline-flex w-full items-center justify-center gap-2 rounded-full bg-ink-900 px-5 text-sm text-paper-100 hover:bg-rosewood">
+                    <FileAudio className="icon-svg h-4 w-4" />
+                    Upload Local Song
+                  </button>
+                </div>
+                {localFile ? <p className="text-sm leading-6 text-ink-500">{localFile.name} is waiting at the edge of the tape.</p> : null}
               </div>
-              <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".mp3,.wav,.m4a,.ogg,audio/*"
-                  onChange={onChooseLocalFile}
-                  className="min-h-14 w-full rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-4 py-3 text-sm text-ink-600 file:mr-4 file:rounded-full file:border-0 file:bg-rosewood file:px-4 file:py-2 file:text-sm file:text-paper-100"
-                />
-                <input
-                  value={localTitle}
-                  onChange={(event) => setLocalTitle(event.target.value)}
-                  placeholder="Custom song name"
-                  className="h-14 w-full rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-5 text-base text-ink-800 shadow-insetpaper transition placeholder:text-ink-300 focus:border-brass"
-                />
-                <input
-                  value={localArtist}
-                  onChange={(event) => setLocalArtist(event.target.value)}
-                  placeholder="Artist, if remembered"
-                  className="h-14 w-full rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-5 text-base text-ink-800 shadow-insetpaper transition placeholder:text-ink-300 focus:border-brass lg:col-span-2"
-                />
-                <button type="button" onClick={addLocalSong} className="touch-target inline-flex items-center justify-center gap-2 rounded-full bg-ink-900 px-5 text-sm text-paper-100 transition hover:bg-rosewood">
-                  <FileAudio className="h-4 w-4" />
-                  Upload Local Song
-                </button>
+
+              <div className="button-lift grid h-full grid-rows-[auto_1fr_auto] gap-4 rounded-[1.6rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.72)] p-5 shadow-insetpaper">
+                <div className="flex items-center gap-3">
+                  <Link className="icon-svg h-5 w-5 text-rosewood" />
+                  <h3 className="font-display text-[2rem] leading-none text-ink-900">Add Spotify Song</h3>
+                </div>
+                <div className="grid content-start gap-3">
+                  <input
+                    value={spotifyUrl}
+                    onChange={(event) => setSpotifyUrl(event.target.value)}
+                    placeholder="Spotify track link, spotify:track:..., or YouTube link"
+                    className="journal-field w-full rounded-full border px-6 text-base text-ink-800"
+                  />
+                  <button type="button" onClick={addSpotifySong} className="button-lift touch-target inline-flex w-full items-center justify-center gap-2 rounded-full bg-ink-900 px-5 text-sm text-paper-100 hover:bg-rosewood">
+                    <Plus className="icon-svg h-4 w-4" />
+                    Add Spotify Song
+                  </button>
+                </div>
               </div>
-              {localFile ? <p className="text-sm text-ink-500">{localFile.name} is waiting at the edge of the tape.</p> : null}
             </div>
 
             <SongList
@@ -460,32 +509,34 @@ export function MusTapeApp() {
               onUpdate={updateSong}
             />
 
-            <div id="seal" className="grid gap-4 rounded-[1.6rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.72)] p-5 shadow-insetpaper">
+            <div id="seal" className="grid gap-4 rounded-[1.35rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.72)] p-5 shadow-insetpaper">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="font-display text-3xl text-ink-900">Seal Tape</h3>
-                  <p className="mt-2 text-sm text-ink-500">When the order feels inevitable, turn it into a private link.</p>
+                  <p className="mt-2 text-sm text-ink-500">
+                    {savedShareId ? "Save changes to the same private link." : "When the order feels inevitable, turn it into a private link."}
+                  </p>
                 </div>
                 <button
                   type="button"
                   onClick={sealTape}
                   disabled={isSealing}
-                  className="touch-target inline-flex items-center justify-center gap-2 rounded-full bg-rosewood px-5 text-sm text-paper-100 transition hover:bg-ink-900 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full bg-rosewood px-6 text-sm text-paper-100 hover:bg-ink-900 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <Share2 className="h-4 w-4" />
-                  {isSealing ? "Sealing" : "Seal Tape"}
+                  <Share2 className="icon-svg h-4 w-4" />
+                  {isSealing ? "Saving" : savedShareId ? "Save Tape" : "Seal Tape"}
                 </button>
               </div>
               {error ? <p role="alert" className="rounded-[1rem] bg-oxblood/10 px-4 py-3 text-sm text-oxblood">{error}</p> : null}
               {shareLink ? (
                 <div className="grid gap-3 rounded-[1.2rem] border border-brass/40 bg-brass/10 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
                   <p className="break-all text-sm text-ink-700">{absoluteShareLink}</p>
-                  <button type="button" onClick={copyShareLink} className="touch-target inline-flex items-center justify-center gap-2 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-4 text-sm text-ink-700 transition hover:border-brass">
-                    <Copy className="h-4 w-4" />
+                  <button type="button" onClick={copyShareLink} className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-4 text-sm text-ink-700 hover:border-brass">
+                    <Copy className="icon-svg h-4 w-4" />
                     {copied ? "Copied" : "Copy Link"}
                   </button>
-                  <a href={absoluteShareLink} className="touch-target inline-flex items-center justify-center gap-2 rounded-full bg-ink-900 px-4 text-sm text-paper-100 transition hover:bg-rosewood">
-                    <ExternalLink className="h-4 w-4" />
+                  <a href={absoluteShareLink} className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full bg-ink-900 px-4 text-sm text-paper-100 hover:bg-rosewood">
+                    <ExternalLink className="icon-svg h-4 w-4" />
                     Open Tape
                   </a>
                 </div>
@@ -495,11 +546,11 @@ export function MusTapeApp() {
         </div>
       </section>
 
-      <section id="ritual" className="px-5 py-24 sm:px-8 lg:px-10">
-        <div className="mx-auto max-w-7xl">
+      <section id="ritual" className="px-5 py-32 sm:px-8 lg:px-10">
+        <div className="mx-auto max-w-[84rem]">
           <div className="max-w-2xl">
             <p className="text-sm uppercase tracking-[0.18em] text-ink-400">The ritual</p>
-            <h2 className="mt-4 font-display text-5xl leading-[1.02] text-ink-900">Three gestures. No machinery showing.</h2>
+            <h2 className="mt-5 font-display text-[clamp(3.25rem,5.2vw,4.8rem)] leading-[0.98] text-ink-900">Three gestures. No machinery showing.</h2>
           </div>
           <div className="mt-14 grid gap-5 md:grid-cols-3">
             {rituals.map((ritual, index) => {
@@ -511,7 +562,7 @@ export function MusTapeApp() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-80px" }}
                   transition={{ delay: index * 0.08, duration: 0.55, ease: "easeOut" }}
-                  className="rounded-[1.6rem] border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.64)] p-7 shadow-insetpaper"
+                  className="button-lift rounded-[1.6rem] border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.64)] p-8 shadow-insetpaper"
                 >
                   <Icon className="h-5 w-5 text-rosewood" />
                   <h3 className="mt-8 font-display text-3xl text-ink-900">{ritual.title}</h3>
@@ -522,6 +573,8 @@ export function MusTapeApp() {
           </div>
         </div>
       </section>
+
+      <EndingFooter />
     </main>
   );
 }
@@ -544,7 +597,7 @@ function Field({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="h-14 w-full rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--paper-100))] px-5 text-lg text-ink-800 shadow-insetpaper transition placeholder:text-ink-300 focus:border-brass"
+        className="journal-field w-full rounded-full border px-6 text-lg text-ink-800"
       />
     </label>
   );
@@ -569,12 +622,23 @@ function TapePreview({
   onPrevious: () => void;
   onNext: () => void;
 }) {
+  const shouldReduceMotion = useReducedMotion();
+  const visualReelsActive = reelsActive || Boolean(currentSong && currentSong.type !== "local");
+
   return (
     <motion.section
       aria-label="Tape preview"
       initial={{ opacity: 0, scale: 0.97, y: 18 }}
-      animate={{ opacity: previewOpen ? 1 : 0.76, scale: 1, y: 0 }}
-      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      animate={{
+        opacity: previewOpen ? 1 : 0.76,
+        scale: 1,
+        y: shouldReduceMotion ? 0 : [0, -4, 0]
+      }}
+      transition={{
+        opacity: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
+        scale: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
+        y: { duration: 7.5, repeat: Infinity, ease: "easeInOut" }
+      }}
       className="relative mx-auto w-full max-w-2xl"
     >
       <div className="absolute -left-6 top-12 hidden h-48 w-10 rounded-l-[2rem] bg-rosewood/80 lg:block" aria-hidden />
@@ -597,11 +661,11 @@ function TapePreview({
           </div>
 
           <div className="my-8 grid grid-cols-[1fr_auto_1fr] items-center gap-4 sm:gap-5">
-            <Reel spin="left" active={reelsActive} />
+            <Reel spin="left" active={visualReelsActive} />
             <div className="grid h-16 w-16 place-items-center rounded-full bg-ink-900 text-paper-100 shadow-insetpaper">
               <Music2 className="h-6 w-6" />
             </div>
-            <Reel spin="right" active={reelsActive} />
+            <Reel spin="right" active={visualReelsActive} />
           </div>
 
           <div className="rounded-[1.1rem] bg-[rgb(var(--surface-muted))] p-5">
@@ -615,7 +679,9 @@ function TapePreview({
               >
                 {currentSong ? (
                   <>
-                    <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink-400">{currentSong.type === "spotify" ? "Spotify trace" : "Local trace"}</p>
+                    <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink-400">
+                      {currentSong.type === "spotify" ? "Spotify trace" : currentSong.type === "youtube" ? "YouTube trace" : "Local trace"}
+                    </p>
                     <h3 className="mt-2 break-words text-2xl font-medium text-ink-900">{currentSong.title}</h3>
                     {currentSong.artist ? <p className="mt-1 break-words text-sm text-ink-500">{currentSong.artist}</p> : null}
                     <p className="mt-5 max-w-md break-words text-lg leading-8 text-ink-600">{currentSong.memory || "Add Memory / Add Note beside this song."}</p>
@@ -623,7 +689,15 @@ function TapePreview({
                       <div className="mt-5">
                         <LocalAudioPlayer src={URL.createObjectURL(currentSong.file)} title={currentSong.title} onPlayingChange={onPlayingChange} />
                       </div>
-                    ) : null}
+                    ) : (
+                      <ExternalMediaEmbed
+                        provider={currentSong.type === "spotify" ? "Spotify" : "YouTube"}
+                        embedUrl={currentSong.embedUrl}
+                        sourceUrl={currentSong.type === "spotify" ? currentSong.spotifyUrl : currentSong.youtubeUrl}
+                        title={currentSong.title}
+                        onInteract={() => onPlayingChange(true)}
+                      />
+                    )}
                   </>
                 ) : (
                   <div className="py-6">
@@ -637,15 +711,15 @@ function TapePreview({
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-2">
-              <button type="button" aria-label="Back" onClick={onPrevious} disabled={!draft.songs.length} className="touch-target grid rounded-full border border-[rgb(var(--border))] text-ink-600 transition hover:border-brass hover:text-ink-900 disabled:opacity-40">
+              <button type="button" aria-label="Back" onClick={onPrevious} disabled={!draft.songs.length} className="button-lift icon-button rounded-full border border-[rgb(var(--border))] text-ink-600 hover:border-brass hover:text-ink-900 disabled:opacity-40">
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <button type="button" aria-label="Next song" onClick={onNext} disabled={!draft.songs.length} className="touch-target grid rounded-full border border-[rgb(var(--border))] text-ink-600 transition hover:border-brass hover:text-ink-900 disabled:opacity-40">
+              <button type="button" aria-label="Next song" onClick={onNext} disabled={!draft.songs.length} className="button-lift icon-button rounded-full border border-[rgb(var(--border))] text-ink-600 hover:border-brass hover:text-ink-900 disabled:opacity-40">
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
-            <a href="#compose" className="touch-target inline-flex items-center justify-center gap-2 rounded-full bg-[rgb(var(--paper-100))] px-4 text-sm text-ink-700 transition hover:text-ink-900">
-              <Plus className="h-4 w-4" />
+            <a href="#compose" className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full bg-[rgb(var(--paper-100))] px-4 text-sm text-ink-700 hover:text-ink-900">
+              <Plus className="icon-svg h-4 w-4" />
               Add Memory / Add Note
             </a>
           </div>
@@ -689,42 +763,42 @@ function SongList({
   }
 
   return (
-    <div className="grid gap-3" aria-label="Songs on this tape">
+    <div className="grid gap-3 xl:grid-cols-2" aria-label="Songs on this tape">
       {songs.map((song, index) => (
         <article
           key={song.clientId}
-          className={`rounded-[1.35rem] border p-4 transition ${
+          className={`button-lift rounded-[1.2rem] border p-4 ${
             index === activeSong
               ? "border-rosewood bg-rosewood/8"
               : "border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.6)]"
           }`}
         >
-          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
             <button type="button" onClick={() => onSelect(index)} className="min-w-0 text-left">
               <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink-400">{String(index + 1).padStart(2, "0")} / {song.type}</p>
               <h4 className="mt-2 break-words text-xl font-medium text-ink-900">{song.title}</h4>
             </button>
             <div className="flex flex-wrap gap-2 md:justify-end">
-              <button type="button" aria-label="Move song up" onClick={() => onMove(index, -1)} disabled={index === 0} className="touch-target grid rounded-full border border-[rgb(var(--border))] text-ink-600 transition hover:border-brass disabled:opacity-35">
+              <button type="button" aria-label="Move song up" onClick={() => onMove(index, -1)} disabled={index === 0} className="button-lift icon-button rounded-full border border-[rgb(var(--border))] text-ink-600 hover:border-brass disabled:opacity-35">
                 <ArrowUp className="h-4 w-4" />
               </button>
-              <button type="button" aria-label="Move song down" onClick={() => onMove(index, 1)} disabled={index === songs.length - 1} className="touch-target grid rounded-full border border-[rgb(var(--border))] text-ink-600 transition hover:border-brass disabled:opacity-35">
+              <button type="button" aria-label="Move song down" onClick={() => onMove(index, 1)} disabled={index === songs.length - 1} className="button-lift icon-button rounded-full border border-[rgb(var(--border))] text-ink-600 hover:border-brass disabled:opacity-35">
                 <ArrowDown className="h-4 w-4" />
               </button>
-              <button type="button" onClick={() => onRemove(song.clientId)} className="touch-target inline-flex items-center justify-center gap-2 rounded-full border border-oxblood/30 px-3 text-sm text-oxblood transition hover:bg-oxblood/10">
-                <Trash2 className="h-4 w-4" />
+              <button type="button" onClick={() => onRemove(song.clientId)} className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full border border-oxblood/30 px-3 text-sm text-oxblood hover:bg-oxblood/10">
+                <Trash2 className="icon-svg h-4 w-4" />
                 Remove Song
               </button>
             </div>
           </div>
-          <label className="mt-4 block">
+          <label className="mt-3 block">
             <span className="mb-2 block text-sm text-ink-500">Add Memory / Add Note</span>
             <textarea
               value={song.memory}
               onChange={(event) => onUpdate(song.clientId, { memory: event.target.value })}
-              rows={3}
+              rows={2}
               placeholder="Where does this song still live?"
-              className="w-full resize-none rounded-[1rem] border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-4 py-3 text-base leading-7 text-ink-800 transition placeholder:text-ink-300 focus:border-brass"
+              className="journal-field w-full resize-none rounded-[1rem] border px-4 py-3 text-base leading-6 text-ink-800"
             />
           </label>
         </article>

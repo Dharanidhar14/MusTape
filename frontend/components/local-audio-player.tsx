@@ -25,6 +25,7 @@ export function LocalAudioPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.82);
   const [speed, setSpeed] = useState(1);
+  const [playbackError, setPlaybackError] = useState("");
 
   useEffect(() => {
     onPlayingChange?.(isPlaying);
@@ -47,7 +48,12 @@ export function LocalAudioPlayer({
     if (!audio) return;
 
     if (audio.paused) {
-      await audio.play();
+      try {
+        setPlaybackError("");
+        await audio.play();
+      } catch {
+        setPlaybackError("Press play once more to begin this sound.");
+      }
       return;
     }
     audio.pause();
@@ -61,7 +67,7 @@ export function LocalAudioPlayer({
   }
 
   return (
-    <div className="rounded-[1.15rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.82)] p-4 shadow-insetpaper">
+    <div className="rounded-[1.15rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.86)] p-5 shadow-insetpaper">
       <audio
         ref={audioRef}
         src={src}
@@ -75,13 +81,14 @@ export function LocalAudioPlayer({
         <track kind="captions" />
       </audio>
 
-      <div className="grid gap-4">
-        <div className="flex items-center gap-3">
+      <div className="grid gap-5">
+        {playbackError ? <p className="rounded-[0.85rem] bg-brass/10 px-3 py-2 text-sm text-ink-600">{playbackError}</p> : null}
+        <div className="flex items-center gap-4">
           <button
             type="button"
             aria-label={isPlaying ? `Pause ${title}` : `Play ${title}`}
             onClick={togglePlayback}
-            className="touch-target grid shrink-0 place-items-center rounded-full bg-ink-900 text-paper-100 transition duration-200 ease-gentle hover:bg-rosewood active:scale-95"
+            className="button-lift icon-button shrink-0 rounded-full bg-ink-900 text-paper-100 hover:bg-rosewood"
           >
             {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
           </button>
@@ -104,8 +111,8 @@ export function LocalAudioPlayer({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-          <label className="flex min-h-11 items-center gap-3 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.58)] px-3 text-sm text-ink-500">
-            <Volume2 className="h-4 w-4 shrink-0 text-ink-400" />
+          <label className="button-lift flex min-h-11 items-center gap-3 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.58)] px-4 text-sm text-ink-500">
+            <Volume2 className="icon-svg h-4 w-4 text-ink-400" />
             <span className="sr-only">Volume</span>
             <input
               aria-label="Volume"
@@ -119,7 +126,7 @@ export function LocalAudioPlayer({
             />
           </label>
 
-          <label className="flex min-h-11 items-center justify-between gap-3 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.58)] px-4 text-sm text-ink-500">
+          <label className="button-lift flex min-h-11 items-center justify-between gap-3 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.58)] px-4 text-sm text-ink-500">
             <span>Speed</span>
             <select
               aria-label="Playback speed"

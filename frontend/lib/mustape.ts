@@ -13,6 +13,16 @@ export type SavedSong =
     }
   | {
       id: string;
+      type: "youtube";
+      title: string;
+      artist: string;
+      memory: string;
+      youtubeUrl: string;
+      youtubeVideoId: string;
+      embedUrl: string;
+    }
+  | {
+      id: string;
       type: "local";
       title: string;
       artist: string;
@@ -44,6 +54,16 @@ export type ComposerSong =
       memory: string;
       spotifyUrl: string;
       spotifyTrackId: string;
+      embedUrl: string;
+    }
+  | {
+      clientId: string;
+      type: "youtube";
+      title: string;
+      artist: string;
+      memory: string;
+      youtubeUrl: string;
+      youtubeVideoId: string;
       embedUrl: string;
     }
   | {
@@ -94,8 +114,12 @@ export function newClientId() {
 }
 
 export function extractSpotifyTrackId(input: string) {
+  const value = input.trim();
+  const uriMatch = value.match(/^spotify:track:([A-Za-z0-9]{16,32})$/);
+  if (uriMatch) return uriMatch[1];
+
   try {
-    const url = new URL(input.trim());
+    const url = new URL(value);
     if (url.hostname !== "open.spotify.com") return null;
     const [kind, trackId] = url.pathname.split("/").filter(Boolean);
     if (kind !== "track" || !trackId) return null;
@@ -103,6 +127,36 @@ export function extractSpotifyTrackId(input: string) {
   } catch {
     return null;
   }
+}
+
+export function extractYouTubeVideoId(input: string) {
+  try {
+    const url = new URL(input.trim());
+    const host = url.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      const [videoId] = url.pathname.split("/").filter(Boolean);
+      return isYouTubeVideoId(videoId) ? videoId : null;
+    }
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname === "/watch") {
+        const videoId = url.searchParams.get("v");
+        return isYouTubeVideoId(videoId) ? videoId : null;
+      }
+
+      const [kind, videoId] = url.pathname.split("/").filter(Boolean);
+      if (kind === "embed") return isYouTubeVideoId(videoId) ? videoId : null;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isYouTubeVideoId(value: string | null | undefined) {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{11}$/.test(value);
 }
 
 export function validateAudioFile(file: File) {
@@ -122,7 +176,7 @@ export function validateAudioFile(file: File) {
   return allowedTypes.has(file.type) || allowedExtensions.some((extension) => lowerName.endsWith(extension));
 }
 
-export async function createTape(draft: ComposerDraft) {
+function tapeFormData(draft: ComposerDraft) {
   const formData = new FormData();
   const localFiles: File[] = [];
 
@@ -134,6 +188,16 @@ export async function createTape(draft: ComposerDraft) {
         artist: song.artist,
         memory: song.memory,
         spotifyUrl: song.spotifyUrl
+      };
+    }
+
+    if (song.type === "youtube") {
+      return {
+        type: "youtube",
+        title: song.title,
+        artist: song.artist,
+        memory: song.memory,
+        youtubeUrl: song.youtubeUrl
       };
     }
 
@@ -160,11 +224,15 @@ export async function createTape(draft: ComposerDraft) {
     })
   );
 
+  return formData;
+}
+
+async function saveTapeRequest(url: string, method: "POST" | "PUT", draft: ComposerDraft) {
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl}/api/tapes`, {
-      method: "POST",
-      body: formData
+    response = await fetch(url, {
+      method,
+      body: tapeFormData(draft)
     });
   } catch {
     throw new Error(`MusTape could not reach the API at ${apiBaseUrl}. Start the backend or check NEXT_PUBLIC_API_URL.`);
@@ -176,6 +244,14 @@ export async function createTape(draft: ComposerDraft) {
   }
 
   return body as { tape: SavedTape; shareUrl: string };
+}
+
+export async function createTape(draft: ComposerDraft) {
+  return saveTapeRequest(`${apiBaseUrl}/api/tapes`, "POST", draft);
+}
+
+export async function updateTape(shareId: string, draft: ComposerDraft) {
+  return saveTapeRequest(`${apiBaseUrl}/api/tapes/${encodeURIComponent(shareId)}`, "PUT", draft);
 }
 
 export async function fetchTape(shareId: string) {

@@ -1,23 +1,35 @@
-# Node
+# Dependencies
 node_modules/
-npm-debug.log*
 
-# Build
-dist/
-build/
+# Build output
 .next/
 out/
+dist/
+build/
+coverage/
 
 # Environment
 .env
 .env.local
 .env.*
 
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
+# Runtime data
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/storage/*.json
+!backend/storage/.gitkeep
+
+# Screenshots and local exports
+screenshots/
+exports/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # IDE
 .vscode/
@@ -26,10 +38,16 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
-
-# Logs
-logs/
-*.log
+desktop.ini
 
 # Cache
 .cache/
+.npm-cache/
+backend/.npm-cache/
+frontend/.npm-cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
