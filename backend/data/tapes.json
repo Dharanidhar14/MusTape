@@ -1,0 +1,23 @@
+[
+  {
+    "id": "3fb7c11a-6161-4488-910e-572cf337797a",
+    "shareId": "ddNgfFI",
+    "title": "Share test",
+    "recipient": "Mira",
+    "inscription": "Testing the private link.",
+    "senderNote": "",
+    "songs": [
+      {
+        "id": "f5475988-9480-41df-924e-6c1cdf06c06a",
+        "type": "spotify",
+        "title": "Cut To The Feeling",
+        "memory": "A small share test.",
+        "spotifyUrl": "https://open.spotify.com/track/11dFghVXANMlKmJXsNCbNl",
+        "spotifyTrackId": "11dFghVXANMlKmJXsNCbNl",
+        "embedUrl": "https://open.spotify.com/embed/track/11dFghVXANMlKmJXsNCbNl"
+      }
+    ],
+    "createdAt": "2026-06-30T04:02:54.608Z",
+    "updatedAt": "2026-06-30T04:02:54.608Z"
+  }
+]
