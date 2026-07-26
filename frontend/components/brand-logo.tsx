@@ -1,5 +1,6 @@
 import { Music2 } from "lucide-react";
 import Link from "next/link";
+import { product } from "@/lib/design-tokens";
 
 export function BrandLogo({
   href = "#compose"
@@ -11,7 +12,7 @@ export function BrandLogo({
       <span className="grid h-10 w-10 place-items-center rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.72)] shadow-insetpaper">
         <Music2 aria-hidden className="h-4 w-4" />
       </span>
-      <span className="font-display text-[1.35rem] leading-none tracking-normal text-ink-900">MusTape</span>
+      <span className="font-display text-[1.35rem] leading-none tracking-normal text-ink-900">{product.name}</span>
     </Link>
   );
 }

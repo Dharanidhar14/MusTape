@@ -1,6 +1,44 @@
+function numberFromEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function normalizeOrigin(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    return ["http:", "https:"].includes(url.protocol) ? url.origin : "";
+  } catch {
+    return "";
+  }
+}
+
+function originList(value) {
+  return String(value || "")
+    .split(",")
+    .map(normalizeOrigin)
+    .filter(Boolean);
+}
+
+const nodeEnv = process.env.NODE_ENV || "development";
+const configuredFrontendOrigin = normalizeOrigin(process.env.FRONTEND_ORIGIN);
+
+if (nodeEnv === "production" && !configuredFrontendOrigin) {
+  throw new Error("FRONTEND_ORIGIN must be an absolute http or https URL in production.");
+}
+
+if (nodeEnv === "production" && !configuredFrontendOrigin.startsWith("https://")) {
+  throw new Error("FRONTEND_ORIGIN must use https in production.");
+}
+
+const frontendOrigin = configuredFrontendOrigin || "http://localhost:3000";
+const allowedOrigins = [...new Set([frontendOrigin, ...originList(process.env.ALLOWED_ORIGINS)])];
+
 export const serverConfig = {
-  port: process.env.PORT || 5000,
-  frontendOrigin: process.env.FRONTEND_ORIGIN || "http://localhost:3000",
-  maxUploadSize: 25 * 1024 * 1024,
-  maxSongs: 24
+  nodeEnv,
+  port: numberFromEnv("PORT", 5000),
+  frontendOrigin,
+  allowedOrigins,
+  maxUploadSize: numberFromEnv("MAX_UPLOAD_SIZE_MB", 25) * 1024 * 1024,
+  maxSongs: numberFromEnv("MAX_SONGS", 24),
+  jsonLimit: process.env.JSON_LIMIT || "1mb"
 };

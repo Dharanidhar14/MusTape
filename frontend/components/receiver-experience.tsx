@@ -9,6 +9,9 @@ import { EndingFooter } from "@/components/ending-footer";
 import { ExternalMediaEmbed } from "@/components/external-media-embed";
 import { LocalAudioPlayer } from "@/components/local-audio-player";
 import { Reel } from "@/components/reel";
+import { Button } from "@/components/ui/button";
+import { clientConfig } from "@/lib/config";
+import { motionTokens, typographyTokens } from "@/lib/design-tokens";
 import type { SavedTape } from "@/lib/mustape";
 
 export function ReceiverExperience({
@@ -33,7 +36,7 @@ export function ReceiverExperience({
   }, [preview, sessionKey]);
 
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem("mustape-theme");
+    const savedTheme = window.localStorage.getItem(clientConfig.themeStorageKey);
     if (savedTheme === "light" || savedTheme === "dark") {
       document.documentElement.dataset.theme = savedTheme;
       document.body.dataset.theme = savedTheme;
@@ -78,7 +81,7 @@ export function ReceiverExperience({
                   initial={shouldReduceMotion ? false : { opacity: 0, y: 18, filter: "blur(10px)" }}
                   animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                   exit={{ opacity: 0, y: -12 }}
-                  transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: motionTokens.durations.reveal, ease: motionTokens.gentleEase }}
                   className="grid gap-14"
                 >
                   <div className="grid gap-14 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
@@ -140,12 +143,12 @@ function SealedTape({
       initial={shouldReduceMotion ? false : { opacity: 0, y: 18, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={shouldReduceMotion ? undefined : { opacity: 0, y: -16, scale: 0.985, filter: "blur(8px)" }}
-      transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: motionTokens.durations.reveal, ease: motionTokens.gentleEase }}
       className="mx-auto grid w-full max-w-4xl place-items-center text-center"
     >
       <motion.div
         animate={shouldReduceMotion ? undefined : { y: [0, -5, 0] }}
-        transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
+        transition={{ duration: motionTokens.durations.drift, repeat: Infinity, ease: "easeInOut" }}
         className="relative w-full rounded-[2.2rem] border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.78)] p-7 shadow-object shadow-insetpaper sm:p-10"
       >
         <div className="mx-auto grid h-28 w-44 place-items-center rounded-[1.5rem] border border-rosewood/25 bg-[rgb(var(--paper-100)/0.72)] shadow-insetpaper">
@@ -159,14 +162,13 @@ function SealedTape({
         </h1>
         <p className="mt-7 text-xl leading-9 text-ink-600">A tape has been left for {tape.recipient}.</p>
         <p className="mx-auto mt-3 max-w-lg leading-7 text-ink-500">Open when the room gets quiet.</p>
-        <button
-          type="button"
+        <Button
           onClick={onOpen}
-          className="button-lift touch-target mt-10 inline-flex items-center justify-center gap-3 rounded-full bg-rosewood px-7 text-sm font-medium text-paper-100 hover:bg-ink-900"
+          className="mt-10 gap-3 px-7 font-medium"
         >
           <Play className="icon-svg h-4 w-4 fill-current" />
           Open Tape
-        </button>
+        </Button>
       </motion.div>
     </motion.section>
   );
@@ -200,16 +202,16 @@ function TapePlayer({
         y: shouldReduceMotion ? 0 : [0, -4, 0]
       }}
       transition={{
-        opacity: { duration: 0.75, ease: [0.22, 1, 0.36, 1] },
-        scale: { duration: 0.75, ease: [0.22, 1, 0.36, 1] },
-        y: { duration: 7.5, repeat: Infinity, ease: "easeInOut" }
+        opacity: { duration: motionTokens.durations.object, ease: motionTokens.gentleEase },
+        scale: { duration: motionTokens.durations.object, ease: motionTokens.gentleEase },
+        y: { duration: motionTokens.durations.drift, repeat: Infinity, ease: "easeInOut" }
       }}
       className="rounded-[2rem] border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.9)] p-5 shadow-object shadow-insetpaper sm:p-7"
     >
       <div className="rounded-[1.45rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100))] p-5">
         <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--border))] pb-5">
           <div className="min-w-0">
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink-400">Opened tape</p>
+            <p className={typographyTokens.caption}>Opened tape</p>
             <h2 className="mt-3 break-words font-display text-4xl text-ink-900">{tape.recipient}</h2>
           </div>
           <CassetteTape className="icon-svg h-5 w-5 shrink-0 text-rosewood" />
@@ -225,7 +227,7 @@ function TapePlayer({
 
         {activeSong ? (
           <div className="rounded-[1.2rem] bg-[rgb(var(--surface-muted))] p-4">
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink-400">
+            <p className={typographyTokens.caption}>
               Current trace / {activeSong.type}
             </p>
             <h3 className="mt-2 break-words text-2xl font-medium text-ink-900">{activeSong.title}</h3>
@@ -261,7 +263,7 @@ function TapePlayer({
               }`}
             >
               <div className="flex items-start gap-3">
-                <span className="font-mono text-xs uppercase tracking-[0.18em] text-ink-400">{String(index + 1).padStart(2, "0")}</span>
+                <span className={typographyTokens.caption}>{String(index + 1).padStart(2, "0")}</span>
                 <span className="min-w-0">
                   <span className="block break-words text-base font-medium text-ink-900">{song.title}</span>
                   {song.type === "local" ? (

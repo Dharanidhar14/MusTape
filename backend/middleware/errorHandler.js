@@ -1,11 +1,25 @@
-export function notFound(_request, response) {
-  response.status(404).json({ error: "This part of the tape could not be found." });
+import { logger } from "../services/logger.js";
+import { toPublicError } from "../services/errors.js";
+
+export function notFound(request, response) {
+  response.status(404).json({
+    error: "This part of the tape could not be found.",
+    code: "MUSTAPE_NOT_FOUND",
+    requestId: request.id
+  });
 }
 
-export function errorHandler(error, _request, response, _next) {
-  const status = error.status || 500;
-  response.status(status).json({
-    error: status === 500 ? "Something slipped while sealing the tape." : error.message,
-    ...(process.env.NODE_ENV === "development" ? { detail: error.message } : {})
+export function errorHandler(error, request, response, _next) {
+  const { status, body } = toPublicError(error, request.id);
+
+  logger[status >= 500 ? "error" : "warn"]("request.error", {
+    requestId: request.id,
+    method: request.method,
+    path: request.path,
+    status,
+    code: body.code,
+    message: error.message
   });
+
+  response.status(status).json(body);
 }

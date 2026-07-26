@@ -7,6 +7,9 @@
   --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --font-sans: "Satoshi", "Inter", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Berkeley Mono", "SFMono-Regular", Consolas, monospace;
+  --ease-gentle: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 220ms;
+  --duration-calm: 260ms;
 
   --ink-50: 250 248 244;
   --ink-100: 238 232 221;
@@ -185,7 +188,7 @@ a {
 
 button:not(:disabled),
 a {
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-timing-function: var(--ease-gentle);
 }
 
 button:focus-visible,
@@ -242,11 +245,11 @@ textarea::placeholder {
   box-shadow: 0 0.5rem 1.5rem rgb(var(--ink-900) / 0.04);
   transform: translateY(0) scale(1);
   transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform var(--duration-fast) var(--ease-gentle),
+    box-shadow var(--duration-fast) var(--ease-gentle),
+    border-color var(--duration-fast) var(--ease-gentle),
+    background-color var(--duration-fast) var(--ease-gentle),
+    color var(--duration-fast) var(--ease-gentle);
 }
 
 .button-lift:hover {
@@ -284,9 +287,9 @@ textarea::placeholder {
     inset 0 1px 0 rgb(255 255 255 / 0.62),
     0 0.35rem 1.4rem rgb(var(--ink-900) / 0.025);
   transition:
-    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    border-color var(--duration-fast) var(--ease-gentle),
+    background-color var(--duration-fast) var(--ease-gentle),
+    box-shadow var(--duration-fast) var(--ease-gentle);
 }
 
 .journal-field:hover {
@@ -451,9 +454,9 @@ textarea::placeholder {
     inset 0 1px 0 rgb(255 255 255 / 0.58),
     0 1.2rem 3.2rem rgb(var(--ink-900) / 0.06);
   transition:
-    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform var(--duration-calm) var(--ease-gentle),
+    box-shadow var(--duration-calm) var(--ease-gentle),
+    border-color var(--duration-calm) var(--ease-gentle);
 }
 
 .letter-card:hover {

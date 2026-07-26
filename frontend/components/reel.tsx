@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { motionTokens } from "@/lib/design-tokens";
 
 export function Reel({ spin, active }: { spin: "left" | "right"; active: boolean }) {
   return (
@@ -8,7 +9,7 @@ export function Reel({ spin, active }: { spin: "left" | "right"; active: boolean
       <motion.div
         aria-hidden
         animate={{ rotate: active ? (spin === "left" ? -360 : 360) : 0 }}
-        transition={{ duration: 9, repeat: active ? Infinity : 0, ease: "linear" }}
+        transition={{ duration: motionTokens.durations.reel, repeat: active ? Infinity : 0, ease: "linear" }}
         className="relative h-full w-full rounded-full border border-ink-200 bg-[rgb(var(--paper-200))]"
       >
         {[0, 1, 2].map((index) => (

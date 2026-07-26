@@ -4,12 +4,16 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const backendRoot = path.resolve(path.dirname(__filename), "..");
+const runtimeRoot = process.env.MUSTAPE_RUNTIME_DIR
+  ? path.resolve(process.env.MUSTAPE_RUNTIME_DIR)
+  : backendRoot;
 
 export const paths = {
   backendRoot,
-  storageDir: path.join(backendRoot, "storage"),
-  dataFile: path.join(backendRoot, "storage", "tapes.json"),
-  uploadDir: path.join(backendRoot, "uploads")
+  runtimeRoot,
+  storageDir: path.join(runtimeRoot, "storage"),
+  dataFile: path.join(runtimeRoot, "storage", "tapes.json"),
+  uploadDir: path.join(runtimeRoot, "uploads")
 };
 
 fs.mkdirSync(paths.storageDir, { recursive: true });

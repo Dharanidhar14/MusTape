@@ -1,4 +1,6 @@
 import { Archive, CassetteTape, Feather } from "lucide-react";
+import { apiBaseUrl, appBaseUrl, clientConfig } from "@/lib/config";
+import { apiUnavailableMessage, userFacingApiError } from "@/lib/errors";
 
 export type SavedSong =
   | {
@@ -83,11 +85,6 @@ export type ComposerDraft = {
   songs: ComposerSong[];
 };
 
-export const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:5000";
-
-export const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
-
 export const rituals = [
   {
     title: "Compose",
@@ -160,20 +157,10 @@ function isYouTubeVideoId(value: string | null | undefined) {
 }
 
 export function validateAudioFile(file: File) {
-  const allowedTypes = new Set([
-    "audio/mpeg",
-    "audio/mp3",
-    "audio/wav",
-    "audio/x-wav",
-    "audio/mp4",
-    "audio/m4a",
-    "audio/aac",
-    "audio/ogg"
-  ]);
-  const allowedExtensions = [".mp3", ".wav", ".m4a", ".ogg"];
+  const allowedTypes = new Set<string>(clientConfig.acceptedAudioMimeTypes);
   const lowerName = file.name.toLowerCase();
 
-  return allowedTypes.has(file.type) || allowedExtensions.some((extension) => lowerName.endsWith(extension));
+  return allowedTypes.has(file.type) || clientConfig.acceptedAudioExtensions.some((extension) => lowerName.endsWith(extension));
 }
 
 function tapeFormData(draft: ComposerDraft) {
@@ -235,12 +222,12 @@ async function saveTapeRequest(url: string, method: "POST" | "PUT", draft: Compo
       body: tapeFormData(draft)
     });
   } catch {
-    throw new Error(`MusTape could not reach the API at ${apiBaseUrl}. Start the backend or check NEXT_PUBLIC_API_URL.`);
+    throw new Error(apiUnavailableMessage(apiBaseUrl));
   }
 
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(body?.error || "The tape could not be sealed.");
+    throw new Error(userFacingApiError(body, "The tape could not be sealed."));
   }
 
   return body as { tape: SavedTape; shareUrl: string };
@@ -261,12 +248,12 @@ export async function fetchTape(shareId: string) {
       cache: "no-store"
     });
   } catch {
-    throw new Error(`MusTape could not reach the API at ${apiBaseUrl}. Start the backend or check NEXT_PUBLIC_API_URL.`);
+    throw new Error(apiUnavailableMessage(apiBaseUrl));
   }
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(body?.error || "This tape could not be opened.");
+    throw new Error(userFacingApiError(body, "This tape could not be opened."));
   }
 
   return body.tape as SavedTape;

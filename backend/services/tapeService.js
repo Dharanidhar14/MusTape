@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { serverConfig } from "../config/server.js";
 import { readTapes, writeTapes } from "../storage/tapeStore.js";
 import { extractSpotifyTrackId, extractYouTubeVideoId, spotifyEmbedUrl, spotifyTrackMetadata, youtubeEmbedUrl } from "./spotifyService.js";
+import { logger } from "./logger.js";
 import { cleanText, fail } from "./textService.js";
 
 const MAX_TEXT = 700;
@@ -104,16 +105,17 @@ async function normalizeSongs(songs, files) {
   }));
 }
 
-export async function createTapeFromDraft(rawTape, files = []) {
+function parseDraft(rawTape) {
   if (!rawTape) fail("The tape arrived without its letter.");
 
-  let draft;
   try {
-    draft = JSON.parse(rawTape);
+    return JSON.parse(rawTape);
   } catch {
     fail("The tape could not be read. Please try sealing it again.");
   }
+}
 
+function validateDraftFields(draft) {
   const recipient = cleanText(draft.recipient, MAX_TITLE);
   const title = cleanText(draft.title, MAX_TITLE);
   const inscription = cleanText(draft.inscription, 1200);
@@ -124,13 +126,20 @@ export async function createTapeFromDraft(rawTape, files = []) {
   if (!title) fail("Give the tape a title before sealing it.");
   if (!inscription) fail("Leave a note before sealing the tape.");
   if (!songs.length) fail("A tape needs at least one song before it can be sealed.");
-  if (songs.length > serverConfig.maxSongs) fail("This tape is too full. Keep it under 24 songs.");
+  if (songs.length > serverConfig.maxSongs) fail(`This tape is too full. Keep it under ${serverConfig.maxSongs} songs.`);
 
+  return { recipient, title, inscription, senderNote, songs };
+}
+
+export async function createTapeFromDraft(rawTape, files = []) {
+  const draft = parseDraft(rawTape);
+  const { recipient, title, inscription, senderNote, songs } = validateDraftFields(draft);
   const tapes = await readTapes();
   let shareId = crypto.randomBytes(5).toString("base64url");
   while (tapes.some((tape) => tape.shareId === shareId)) {
     shareId = crypto.randomBytes(5).toString("base64url");
   }
+  logger.info("tape.share_id.generated", { shareId });
 
   const now = new Date().toISOString();
   const tape = {
@@ -147,36 +156,23 @@ export async function createTapeFromDraft(rawTape, files = []) {
 
   tapes.push(tape);
   await writeTapes(tapes);
+  logger.info("tape.created", {
+    tapeId: tape.id,
+    shareId: tape.shareId,
+    songCount: tape.songs.length
+  });
   return tape;
 }
 
 export async function updateTapeFromDraft(shareId, rawTape, files = []) {
-  if (!rawTape) fail("The tape arrived without its letter.");
-
-  let draft;
-  try {
-    draft = JSON.parse(rawTape);
-  } catch {
-    fail("The tape could not be read. Please try sealing it again.");
-  }
-
+  const draft = parseDraft(rawTape);
   const tapes = await readTapes();
   const normalizedShareId = cleanText(shareId, 80);
   const index = tapes.findIndex((entry) => entry.shareId === normalizedShareId);
   if (index === -1) fail("This tape could not be found.", 404);
 
   const currentTape = tapes[index];
-  const recipient = cleanText(draft.recipient, MAX_TITLE);
-  const title = cleanText(draft.title, MAX_TITLE);
-  const inscription = cleanText(draft.inscription, 1200);
-  const senderNote = cleanText(draft.senderNote, 500);
-  const songs = Array.isArray(draft.songs) ? draft.songs : [];
-
-  if (!recipient) fail("Add the recipient before sealing the tape.");
-  if (!title) fail("Give the tape a title before sealing it.");
-  if (!inscription) fail("Leave a note before sealing the tape.");
-  if (!songs.length) fail("A tape needs at least one song before it can be sealed.");
-  if (songs.length > serverConfig.maxSongs) fail("This tape is too full. Keep it under 24 songs.");
+  const { recipient, title, inscription, senderNote, songs } = validateDraftFields(draft);
 
   const updatedTape = {
     ...currentTape,
@@ -190,6 +186,11 @@ export async function updateTapeFromDraft(shareId, rawTape, files = []) {
 
   tapes[index] = updatedTape;
   await writeTapes(tapes);
+  logger.info("tape.updated", {
+    tapeId: updatedTape.id,
+    shareId: updatedTape.shareId,
+    songCount: updatedTape.songs.length
+  });
   return updatedTape;
 }
 

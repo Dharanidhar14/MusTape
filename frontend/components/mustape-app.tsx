@@ -29,6 +29,10 @@ import { ExternalMediaEmbed } from "@/components/external-media-embed";
 import { LocalAudioPlayer } from "@/components/local-audio-player";
 import { ReceiverExperience } from "@/components/receiver-experience";
 import { Reel } from "@/components/reel";
+import { IconButton } from "@/components/ui/button";
+import { HeroTitle, SectionTitle } from "@/components/ui/typography";
+import { clientConfig } from "@/lib/config";
+import { motionTokens, typographyTokens } from "@/lib/design-tokens";
 import {
   createTape,
   buildShareUrl,
@@ -71,7 +75,7 @@ export function MusTapeApp() {
   const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem("mustape-theme");
+    const savedTheme = window.localStorage.getItem(clientConfig.themeStorageKey);
     if (savedTheme === "light" || savedTheme === "dark") {
       setTheme(savedTheme);
     }
@@ -80,7 +84,7 @@ export function MusTapeApp() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.body.dataset.theme = theme;
-    window.localStorage.setItem("mustape-theme", theme);
+    window.localStorage.setItem(clientConfig.themeStorageKey, theme);
   }, [theme]);
 
   const currentSong = draft.songs[activeSong];
@@ -360,25 +364,25 @@ export function MusTapeApp() {
               <motion.p
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
+                transition={{ duration: motionTokens.durations.calm, ease: "easeOut" }}
                 className="mb-6 inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.58)] px-3 py-2 text-xs uppercase tracking-[0.18em] text-ink-500"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 A keepsake for sound
               </motion.p>
-              <motion.h1
+              <HeroTitle
+                as={motion.h1}
                 id="studio-title"
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.08, duration: 0.7, ease: "easeOut" }}
-                className="font-display text-[clamp(3.75rem,9.2vw,9.1rem)] leading-[0.875] tracking-normal text-ink-900"
+                transition={{ delay: 0.08, duration: motionTokens.durations.reveal, ease: "easeOut" }}
               >
                 Make a tape that feels held.
-              </motion.h1>
+              </HeroTitle>
               <motion.p
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.16, duration: 0.7, ease: "easeOut" }}
+                transition={{ delay: 0.16, duration: motionTokens.durations.reveal, ease: "easeOut" }}
                 className="mt-8 max-w-xl text-[1.15rem] leading-9 text-ink-500"
               >
                 Compose a private cassette letter with songs, traces, and a link that opens like an envelope.
@@ -417,9 +421,9 @@ export function MusTapeApp() {
           <div className="grid gap-14 lg:grid-cols-[0.76fr_1.24fr]">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-ink-400">Composition desk</p>
-            <h2 className="mt-5 max-w-md font-display text-[clamp(3.25rem,5.5vw,4.9rem)] leading-[0.98] text-ink-900">
+            <SectionTitle className="mt-5 max-w-md">
               Place only what deserves to be remembered.
-            </h2>
+            </SectionTitle>
             <p className="mt-7 max-w-md text-[1.05rem] leading-8 text-ink-500">
               No default songs. No borrowed mood. Paste a Spotify link or upload the sound that belongs here.
             </p>
@@ -550,7 +554,7 @@ export function MusTapeApp() {
         <div className="mx-auto max-w-[84rem]">
           <div className="max-w-2xl">
             <p className="text-sm uppercase tracking-[0.18em] text-ink-400">The ritual</p>
-            <h2 className="mt-5 font-display text-[clamp(3.25rem,5.2vw,4.8rem)] leading-[0.98] text-ink-900">Three gestures. No machinery showing.</h2>
+            <SectionTitle className="mt-5">Three gestures. No machinery showing.</SectionTitle>
           </div>
           <div className="mt-14 grid gap-5 md:grid-cols-3">
             {rituals.map((ritual, index) => {
@@ -561,7 +565,7 @@ export function MusTapeApp() {
                   initial={shouldReduceMotion ? false : { opacity: 0, y: 18 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-80px" }}
-                  transition={{ delay: index * 0.08, duration: 0.55, ease: "easeOut" }}
+                  transition={{ delay: index * 0.08, duration: motionTokens.durations.calm, ease: "easeOut" }}
                   className="button-lift rounded-[1.6rem] border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.64)] p-8 shadow-insetpaper"
                 >
                   <Icon className="h-5 w-5 text-rosewood" />
@@ -635,9 +639,9 @@ function TapePreview({
         y: shouldReduceMotion ? 0 : [0, -4, 0]
       }}
       transition={{
-        opacity: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
-        scale: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
-        y: { duration: 7.5, repeat: Infinity, ease: "easeInOut" }
+        opacity: { duration: motionTokens.durations.object, ease: motionTokens.gentleEase },
+        scale: { duration: motionTokens.durations.object, ease: motionTokens.gentleEase },
+        y: { duration: motionTokens.durations.drift, repeat: Infinity, ease: "easeInOut" }
       }}
       className="relative mx-auto w-full max-w-2xl"
     >
@@ -654,7 +658,7 @@ function TapePreview({
         <div className="rounded-[1.45rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100))] p-5">
           <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--border))] pb-5">
             <div className="min-w-0">
-              <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink-400">Side A / {String(activeSong + 1).padStart(2, "0")}</p>
+              <p className={typographyTokens.caption}>Side A / {String(activeSong + 1).padStart(2, "0")}</p>
               <h2 className="mt-3 break-words font-display text-4xl leading-none text-ink-900">{draft.recipient || "Recipient"}</h2>
             </div>
             <span className="shrink-0 rounded-full bg-brass/15 px-3 py-1 text-xs text-ink-600">Draft</span>
@@ -675,11 +679,11 @@ function TapePreview({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.28 }}
+                transition={{ duration: motionTokens.durations.fast }}
               >
                 {currentSong ? (
                   <>
-                    <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink-400">
+                    <p className={typographyTokens.caption}>
                       {currentSong.type === "spotify" ? "Spotify trace" : currentSong.type === "youtube" ? "YouTube trace" : "Local trace"}
                     </p>
                     <h3 className="mt-2 break-words text-2xl font-medium text-ink-900">{currentSong.title}</h3>
@@ -711,12 +715,12 @@ function TapePreview({
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-2">
-              <button type="button" aria-label="Back" onClick={onPrevious} disabled={!draft.songs.length} className="button-lift icon-button rounded-full border border-[rgb(var(--border))] text-ink-600 hover:border-brass hover:text-ink-900 disabled:opacity-40">
+              <IconButton aria-label="Back" onClick={onPrevious} disabled={!draft.songs.length}>
                 <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button type="button" aria-label="Next song" onClick={onNext} disabled={!draft.songs.length} className="button-lift icon-button rounded-full border border-[rgb(var(--border))] text-ink-600 hover:border-brass hover:text-ink-900 disabled:opacity-40">
+              </IconButton>
+              <IconButton aria-label="Next song" onClick={onNext} disabled={!draft.songs.length}>
                 <ArrowRight className="h-4 w-4" />
-              </button>
+              </IconButton>
             </div>
             <a href="#compose" className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full bg-[rgb(var(--paper-100))] px-4 text-sm text-ink-700 hover:text-ink-900">
               <Plus className="icon-svg h-4 w-4" />
@@ -775,16 +779,16 @@ function SongList({
         >
           <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
             <button type="button" onClick={() => onSelect(index)} className="min-w-0 text-left">
-              <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink-400">{String(index + 1).padStart(2, "0")} / {song.type}</p>
+              <p className={typographyTokens.caption}>{String(index + 1).padStart(2, "0")} / {song.type}</p>
               <h4 className="mt-2 break-words text-xl font-medium text-ink-900">{song.title}</h4>
             </button>
             <div className="flex flex-wrap gap-2 md:justify-end">
-              <button type="button" aria-label="Move song up" onClick={() => onMove(index, -1)} disabled={index === 0} className="button-lift icon-button rounded-full border border-[rgb(var(--border))] text-ink-600 hover:border-brass disabled:opacity-35">
+              <IconButton aria-label="Move song up" onClick={() => onMove(index, -1)} disabled={index === 0} className="disabled:opacity-35">
                 <ArrowUp className="h-4 w-4" />
-              </button>
-              <button type="button" aria-label="Move song down" onClick={() => onMove(index, 1)} disabled={index === songs.length - 1} className="button-lift icon-button rounded-full border border-[rgb(var(--border))] text-ink-600 hover:border-brass disabled:opacity-35">
+              </IconButton>
+              <IconButton aria-label="Move song down" onClick={() => onMove(index, 1)} disabled={index === songs.length - 1} className="disabled:opacity-35">
                 <ArrowDown className="h-4 w-4" />
-              </button>
+              </IconButton>
               <button type="button" onClick={() => onRemove(song.clientId)} className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full border border-oxblood/30 px-3 text-sm text-oxblood hover:bg-oxblood/10">
                 <Trash2 className="icon-svg h-4 w-4" />
                 Remove Song
