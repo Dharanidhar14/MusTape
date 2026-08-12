@@ -85,6 +85,19 @@ export type ComposerDraft = {
   songs: ComposerSong[];
 };
 
+/** Result returned from createTape — includes managementToken for building management URL */
+export type CreateTapeResult = {
+  tape: SavedTape;
+  shareUrl: string;
+  managementToken: string;
+};
+
+/** Result returned from updateTape — managementToken not re-issued */
+export type UpdateTapeResult = {
+  tape: SavedTape;
+  shareUrl: string;
+};
+
 export const rituals = [
   {
     title: "Compose",
@@ -214,11 +227,11 @@ function tapeFormData(draft: ComposerDraft) {
   return formData;
 }
 
-async function saveTapeRequest(url: string, method: "POST" | "PUT", draft: ComposerDraft) {
+export async function createTape(draft: ComposerDraft): Promise<CreateTapeResult> {
   let response: Response;
   try {
-    response = await fetch(url, {
-      method,
+    response = await fetch(`${apiBaseUrl}/api/tapes`, {
+      method: "POST",
       body: tapeFormData(draft)
     });
   } catch {
@@ -230,18 +243,51 @@ async function saveTapeRequest(url: string, method: "POST" | "PUT", draft: Compo
     throw new Error(userFacingApiError(body, "The tape could not be sealed."));
   }
 
-  return body as { tape: SavedTape; shareUrl: string };
+  return body as CreateTapeResult;
 }
 
-export async function createTape(draft: ComposerDraft) {
-  return saveTapeRequest(`${apiBaseUrl}/api/tapes`, "POST", draft);
+export async function updateTape(shareId: string, managementToken: string, draft: ComposerDraft): Promise<UpdateTapeResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/api/tapes/${encodeURIComponent(shareId)}`, {
+      method: "PUT",
+      headers: {
+        "X-Management-Token": managementToken
+      },
+      body: tapeFormData(draft)
+    });
+  } catch {
+    throw new Error(apiUnavailableMessage(apiBaseUrl));
+  }
+
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(userFacingApiError(body, "The tape could not be saved."));
+  }
+
+  return body as UpdateTapeResult;
 }
 
-export async function updateTape(shareId: string, draft: ComposerDraft) {
-  return saveTapeRequest(`${apiBaseUrl}/api/tapes/${encodeURIComponent(shareId)}`, "PUT", draft);
+export async function deleteTape(shareId: string, managementToken: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/api/tapes/${encodeURIComponent(shareId)}`, {
+      method: "DELETE",
+      headers: {
+        "X-Management-Token": managementToken
+      }
+    });
+  } catch {
+    throw new Error(apiUnavailableMessage(apiBaseUrl));
+  }
+
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(userFacingApiError(body, "The tape could not be deleted."));
+  }
 }
 
-export async function fetchTape(shareId: string) {
+export async function fetchTape(shareId: string): Promise<SavedTape> {
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl}/api/tapes/${encodeURIComponent(shareId)}`, {
@@ -259,8 +305,33 @@ export async function fetchTape(shareId: string) {
   return body.tape as SavedTape;
 }
 
+/** Fetch tape data for the management page using the management token */
+export async function fetchManageTape(managementToken: string): Promise<SavedTape> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/api/manage/${encodeURIComponent(managementToken)}`, {
+      cache: "no-store"
+    });
+  } catch {
+    throw new Error(apiUnavailableMessage(apiBaseUrl));
+  }
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(userFacingApiError(body, "This management link could not be found."));
+  }
+
+  return body.tape as SavedTape;
+}
+
 export function buildShareUrl(sharePath: string) {
   if (/^https?:\/\//i.test(sharePath)) return sharePath;
   const baseUrl = appBaseUrl || (typeof window !== "undefined" ? window.location.origin : "");
   return baseUrl ? new URL(sharePath, baseUrl).toString() : sharePath;
+}
+
+export function buildManagementUrl(managementToken: string) {
+  const baseUrl = appBaseUrl || (typeof window !== "undefined" ? window.location.origin : "");
+  const path = `/manage/${managementToken}`;
+  return baseUrl ? new URL(path, baseUrl).toString() : path;
 }

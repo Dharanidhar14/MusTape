@@ -22,7 +22,7 @@ import {
   Upload
 } from "lucide-react";
 import Image from "next/image";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrandLogo } from "@/components/brand-logo";
 import { EndingFooter } from "@/components/ending-footer";
 import { ExternalMediaEmbed } from "@/components/external-media-embed";
@@ -34,8 +34,10 @@ import { HeroTitle, SectionTitle } from "@/components/ui/typography";
 import { clientConfig } from "@/lib/config";
 import { motionTokens, typographyTokens } from "@/lib/design-tokens";
 import {
-  createTape,
+  buildManagementUrl,
   buildShareUrl,
+  createTape,
+  deleteTape,
   extractSpotifyTrackId,
   extractYouTubeVideoId,
   newClientId,
@@ -69,10 +71,50 @@ export function MusTapeApp() {
   const [error, setError] = useState("");
   const [shareLink, setShareLink] = useState("");
   const [savedShareId, setSavedShareId] = useState("");
+  // Management token is kept in state AND localStorage so it survives in the
+  // management page URL — the sender is given the full /manage/:token URL.
+  const [savedManagementToken, setSavedManagementToken] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedManagement, setCopiedManagement] = useState(false);
   const [isSealing, setIsSealing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const shouldReduceMotion = useReducedMotion();
+
+  // ─── Fix 4: Blob URL lifecycle ────────────────────────────────────────────
+  // One blob URL per local song, keyed by stable clientId.
+  // Created when a local song is added, revoked when it is removed or on unmount.
+  const blobUrlMap = useRef<Map<string, string>>(new Map());
+
+  /** Create a blob URL for a local song if one doesn't exist yet. */
+  const getOrCreateBlobUrl = useCallback((song: ComposerSong & { type: "local" }): string => {
+    const existing = blobUrlMap.current.get(song.clientId);
+    if (existing) return existing;
+    const url = URL.createObjectURL(song.file);
+    blobUrlMap.current.set(song.clientId, url);
+    return url;
+  }, []);
+
+  /** Revoke and remove a blob URL by clientId. */
+  const revokeBlobUrl = useCallback((clientId: string) => {
+    const url = blobUrlMap.current.get(clientId);
+    if (url) {
+      URL.revokeObjectURL(url);
+      blobUrlMap.current.delete(clientId);
+    }
+  }, []);
+
+  // Revoke ALL blob URLs on component unmount.
+  useEffect(() => {
+    const map = blobUrlMap.current;
+    return () => {
+      map.forEach((url) => URL.revokeObjectURL(url));
+      map.clear();
+    };
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem(clientConfig.themeStorageKey);
@@ -88,6 +130,9 @@ export function MusTapeApp() {
   }, [theme]);
 
   const currentSong = draft.songs[activeSong];
+
+  // Build previewTape without calling createObjectURL inside the memo.
+  // Blob URLs are read from the stable blobUrlMap ref instead.
   const previewTape = useMemo<SavedTape>(() => ({
     id: "preview",
     shareId: "preview",
@@ -124,6 +169,9 @@ export function MusTapeApp() {
         };
       }
 
+      // Local songs: read the stable blob URL from the map.
+      // getOrCreateBlobUrl is stable (useCallback with no deps).
+      const audioUrl = getOrCreateBlobUrl(song);
       return {
         id: song.clientId,
         type: "local",
@@ -133,14 +181,20 @@ export function MusTapeApp() {
         fileName: song.file.name,
         originalFileName: song.file.name,
         audioPath: "",
-        audioUrl: URL.createObjectURL(song.file)
+        audioUrl
       };
     })
-  }), [draft]);
+  }), [draft, getOrCreateBlobUrl]);
+
   const absoluteShareLink = useMemo(() => {
     if (!shareLink) return "";
     return buildShareUrl(shareLink);
   }, [shareLink]);
+
+  const absoluteManagementLink = useMemo(() => {
+    if (!savedManagementToken) return "";
+    return buildManagementUrl(savedManagementToken);
+  }, [savedManagementToken]);
 
   function updateDraft<K extends keyof ComposerDraft>(key: K, value: ComposerDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -219,6 +273,9 @@ export function MusTapeApp() {
       file: localFile
     };
 
+    // Eagerly create the blob URL so it's in the map before render.
+    getOrCreateBlobUrl(song);
+
     setDraft((current) => ({ ...current, songs: [...current.songs, song] }));
     setActiveSong(draft.songs.length);
     setLocalFile(null);
@@ -235,6 +292,8 @@ export function MusTapeApp() {
   }
 
   function removeSong(clientId: string) {
+    // Revoke blob URL when a local song is removed (Fix 4).
+    revokeBlobUrl(clientId);
     setDraft((current) => {
       const nextSongs = current.songs.filter((song) => song.clientId !== clientId);
       setActiveSong((index) => Math.max(0, Math.min(index, nextSongs.length - 1)));
@@ -272,14 +331,47 @@ export function MusTapeApp() {
 
     setIsSealing(true);
     try {
-      const result = savedShareId ? await updateTape(savedShareId, draft) : await createTape(draft);
-      setSavedShareId(result.tape.shareId);
-      setShareLink(result.shareUrl);
+      if (savedShareId && savedManagementToken) {
+        // Update existing tape — passes management token for auth
+        const result = await updateTape(savedShareId, savedManagementToken, draft);
+        setSavedShareId(result.tape.shareId);
+        setShareLink(result.shareUrl);
+      } else {
+        // Create new tape — receive management token once
+        const result = await createTape(draft);
+        setSavedShareId(result.tape.shareId);
+        setSavedManagementToken(result.managementToken);
+        setShareLink(result.shareUrl);
+      }
       setPreviewOpen(true);
     } catch (sealError) {
       setError(sealError instanceof Error ? sealError.message : "The tape could not be sealed.");
     } finally {
       setIsSealing(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteConfirm) {
+      setDeleteConfirm(true);
+      return;
+    }
+    if (!savedShareId || !savedManagementToken) return;
+    setIsDeleting(true);
+    setError("");
+    try {
+      await deleteTape(savedShareId, savedManagementToken);
+      // Reset to clean slate after deletion
+      setSavedShareId("");
+      setSavedManagementToken("");
+      setShareLink("");
+      setDraft(emptyDraft);
+      setDeleteConfirm(false);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "The tape could not be deleted.");
+      setDeleteConfirm(false);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -307,6 +399,28 @@ export function MusTapeApp() {
       setError("");
     } catch {
       setError("The link is ready, but your browser would not copy it automatically.");
+    }
+  }
+
+  async function copyManagementLink() {
+    if (!absoluteManagementLink) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(absoluteManagementLink);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = absoluteManagementLink;
+        textArea.setAttribute("readonly", "");
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setCopiedManagement(true);
+    } catch {
+      // ignore
     }
   }
 
@@ -408,6 +522,7 @@ export function MusTapeApp() {
               activeSong={activeSong}
               previewOpen={previewOpen}
               reelsActive={reelsActive}
+              blobUrlMap={blobUrlMap.current}
               onPlayingChange={setReelsActive}
               onPrevious={() => setActiveSong((index) => (index <= 0 ? Math.max(0, draft.songs.length - 1) : index - 1))}
               onNext={() => setActiveSong((index) => (index + 1 >= draft.songs.length ? 0 : index + 1))}
@@ -513,6 +628,7 @@ export function MusTapeApp() {
               onUpdate={updateSong}
             />
 
+            {/* ── Seal section ─────────────────────────────────────── */}
             <div id="seal" className="grid gap-4 rounded-[1.35rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100)/0.72)] p-5 shadow-insetpaper">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -521,28 +637,72 @@ export function MusTapeApp() {
                     {savedShareId ? "Save changes to the same private link." : "When the order feels inevitable, turn it into a private link."}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={sealTape}
-                  disabled={isSealing}
-                  className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full bg-rosewood px-6 text-sm text-paper-100 hover:bg-ink-900 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Share2 className="icon-svg h-4 w-4" />
-                  {isSealing ? "Saving" : savedShareId ? "Save Tape" : "Seal Tape"}
-                </button>
-              </div>
-              {error ? <p role="alert" className="rounded-[1rem] bg-oxblood/10 px-4 py-3 text-sm text-oxblood">{error}</p> : null}
-              {shareLink ? (
-                <div className="grid gap-3 rounded-[1.2rem] border border-brass/40 bg-brass/10 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-                  <p className="break-all text-sm text-ink-700">{absoluteShareLink}</p>
-                  <button type="button" onClick={copyShareLink} className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-4 text-sm text-ink-700 hover:border-brass">
-                    <Copy className="icon-svg h-4 w-4" />
-                    {copied ? "Copied" : "Copy Link"}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={sealTape}
+                    disabled={isSealing}
+                    className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full bg-rosewood px-6 text-sm text-paper-100 hover:bg-ink-900 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Share2 className="icon-svg h-4 w-4" />
+                    {isSealing ? "Saving" : savedShareId ? "Save Tape" : "Seal Tape"}
                   </button>
-                  <a href={absoluteShareLink} className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full bg-ink-900 px-4 text-sm text-paper-100 hover:bg-rosewood">
-                    <ExternalLink className="icon-svg h-4 w-4" />
-                    Open Tape
-                  </a>
+                  {savedShareId && savedManagementToken ? (
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className={`button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full border px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${
+                        deleteConfirm
+                          ? "border-oxblood bg-oxblood text-paper-100 hover:bg-oxblood/80"
+                          : "border-oxblood/30 text-oxblood hover:bg-oxblood/10"
+                      }`}
+                    >
+                      <Trash2 className="icon-svg h-4 w-4" />
+                      {isDeleting ? "Deleting…" : deleteConfirm ? "Confirm Delete" : "Delete Tape"}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {deleteConfirm && !isDeleting ? (
+                <p className="rounded-[1rem] bg-oxblood/10 px-4 py-3 text-sm text-oxblood">
+                  This will permanently destroy the tape and all its uploaded audio.{" "}
+                  <button type="button" onClick={() => setDeleteConfirm(false)} className="underline hover:no-underline">
+                    Cancel
+                  </button>
+                </p>
+              ) : null}
+              {error ? <p role="alert" className="rounded-[1rem] bg-oxblood/10 px-4 py-3 text-sm text-oxblood">{error}</p> : null}
+
+              {/* Receiver link */}
+              {shareLink ? (
+                <div className="grid gap-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-ink-400">Receiver link — share this with the recipient</p>
+                  <div className="grid gap-3 rounded-[1.2rem] border border-brass/40 bg-brass/10 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                    <p className="break-all text-sm text-ink-700">{absoluteShareLink}</p>
+                    <button type="button" onClick={copyShareLink} className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-4 text-sm text-ink-700 hover:border-brass">
+                      <Copy className="icon-svg h-4 w-4" />
+                      {copied ? "Copied" : "Copy Link"}
+                    </button>
+                    <a href={absoluteShareLink} className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full bg-ink-900 px-4 text-sm text-paper-100 hover:bg-rosewood">
+                      <ExternalLink className="icon-svg h-4 w-4" />
+                      Open Tape
+                    </a>
+                  </div>
+
+                  {/* Management link — shown only to the sender, immediately after creation */}
+                  {absoluteManagementLink ? (
+                    <div className="grid gap-3 rounded-[1.2rem] border border-rosewood/30 bg-rosewood/6 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                      <div>
+                        <p className="mb-1 text-xs uppercase tracking-[0.18em] text-rosewood/70">Management link — save this privately to edit or delete</p>
+                        <p className="break-all text-sm text-ink-700">{absoluteManagementLink}</p>
+                      </div>
+                      <button type="button" onClick={copyManagementLink} className="button-lift touch-target inline-flex items-center justify-center gap-2 rounded-full border border-rosewood/30 bg-[rgb(var(--surface))] px-4 text-sm text-rosewood hover:border-rosewood">
+                        <Copy className="icon-svg h-4 w-4" />
+                        {copiedManagement ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -613,6 +773,7 @@ function TapePreview({
   activeSong,
   previewOpen,
   reelsActive,
+  blobUrlMap,
   onPlayingChange,
   onPrevious,
   onNext
@@ -622,12 +783,16 @@ function TapePreview({
   activeSong: number;
   previewOpen: boolean;
   reelsActive: boolean;
+  blobUrlMap: Map<string, string>;
   onPlayingChange: (isPlaying: boolean) => void;
   onPrevious: () => void;
   onNext: () => void;
 }) {
   const shouldReduceMotion = useReducedMotion();
   const visualReelsActive = reelsActive || Boolean(currentSong && currentSong.type !== "local");
+
+  // Read the blob URL from the map — never call createObjectURL in render.
+  const localSrc = currentSong?.type === "local" ? blobUrlMap.get(currentSong.clientId) ?? "" : "";
 
   return (
     <motion.section
@@ -691,7 +856,9 @@ function TapePreview({
                     <p className="mt-5 max-w-md break-words text-lg leading-8 text-ink-600">{currentSong.memory || "Add Memory / Add Note beside this song."}</p>
                     {currentSong.type === "local" ? (
                       <div className="mt-5">
-                        <LocalAudioPlayer src={URL.createObjectURL(currentSong.file)} title={currentSong.title} onPlayingChange={onPlayingChange} />
+                        {localSrc ? (
+                          <LocalAudioPlayer src={localSrc} title={currentSong.title} onPlayingChange={onPlayingChange} />
+                        ) : null}
                       </div>
                     ) : (
                       <ExternalMediaEmbed

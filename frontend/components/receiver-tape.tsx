@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { ReceiverExperience } from "@/components/receiver-experience";
 import { fetchTape, type SavedTape } from "@/lib/mustape";
 
@@ -26,7 +27,13 @@ export function ReceiverTape({ shareId }: { shareId: string }) {
     };
   }, [shareId]);
 
-  if (tape) return <ReceiverExperience tape={tape} />;
+  if (tape) {
+    return (
+      <ErrorBoundary label="Something slipped while opening the tape.">
+        <ReceiverExperience tape={tape} />
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <main className="min-h-screen overflow-x-hidden text-ink-800">

@@ -4,6 +4,7 @@ import { paths } from "./config/paths.js";
 import { serverConfig } from "./config/server.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { requestLogger } from "./middleware/requestLogger.js";
+import manageRouter from "./routes/manage.js";
 import tapesRouter from "./routes/tapes.js";
 import { logger } from "./services/logger.js";
 
@@ -34,13 +35,17 @@ app.use(
           code: "MUSTAPE_ORIGIN_NOT_ALLOWED"
         })
       );
-    }
+    },
+    // Allow the management token header for preflight checks on PUT/DELETE
+    allowedHeaders: ["Content-Type", "X-Management-Token"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
   })
 );
 
 app.use(express.json({ limit: serverConfig.jsonLimit }));
 app.use("/uploads", express.static(paths.uploadDir));
 app.use("/api/tapes", tapesRouter);
+app.use("/api/manage", manageRouter);
 
 app.get("/health", (_request, response) => {
   response.json({ ok: true, name: "MusTape API" });
