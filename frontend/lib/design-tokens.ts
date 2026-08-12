@@ -1,7 +1,7 @@
 export const product = {
   name: "MusTape",
   tagline: "A keepsake for sound.",
-  version: "3.1.0",
+  version: "3.1.1",
   footerLine: "The tape has reached its end.",
   footerEcho: "But memories rarely do."
 } as const;
