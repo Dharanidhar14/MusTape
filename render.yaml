@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mustape-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MUSTAPE_RUNTIME_DIR
+        value: /data
+    disk:
+      name: mustape-data
+      mountPath: /data
+      sizeGB: 1

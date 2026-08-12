@@ -37,7 +37,7 @@ export const uploadLocalSongs = multer({
   },
   fileFilter(_request, file, callback) {
     const extension = path.extname(file.originalname).toLowerCase();
-    if (allowedMimeTypes.has(file.mimetype) || allowedExtensions.has(extension)) {
+    if (allowedMimeTypes.has(file.mimetype) && allowedExtensions.has(extension)) {
       callback(null, true);
       return;
     }

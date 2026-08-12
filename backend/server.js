@@ -1,5 +1,8 @@
+import fs from "node:fs/promises";
 import cors from "cors";
 import express from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import { paths } from "./config/paths.js";
 import { serverConfig } from "./config/server.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
@@ -22,6 +25,7 @@ function isAllowedOrigin(origin) {
 
 app.set("trust proxy", 1);
 app.use(requestLogger);
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
   cors({
     origin(origin, callback) {
@@ -42,13 +46,30 @@ app.use(
   })
 );
 
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again later.", code: "MUSTAPE_RATE_LIMIT" }
+});
+
+app.use(globalLimiter);
 app.use(express.json({ limit: serverConfig.jsonLimit }));
 app.use("/uploads", express.static(paths.uploadDir));
 app.use("/api/tapes", tapesRouter);
 app.use("/api/manage", manageRouter);
 
-app.get("/health", (_request, response) => {
-  response.json({ ok: true, name: "MusTape API" });
+app.get("/health", async (_request, response) => {
+  try {
+    // Only verify basic accessibility. FS throws if not found/unauthorized.
+    await fs.access(paths.dataFile, fs.constants.R_OK | fs.constants.W_OK);
+    await fs.access(paths.uploadDir, fs.constants.R_OK | fs.constants.W_OK);
+    response.json({ ok: true, name: "MusTape API", storage: "ok" });
+  } catch (error) {
+    logger.error("health.storage_failed", { message: error.message });
+    response.status(503).json({ ok: false, name: "MusTape API", storage: "unreachable" });
+  }
 });
 
 app.use(notFound);
