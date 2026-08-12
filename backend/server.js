@@ -63,7 +63,7 @@ app.use("/api/manage", manageRouter);
 app.get("/health", async (_request, response) => {
   try {
     // Only verify basic accessibility. FS throws if not found/unauthorized.
-    await fs.access(paths.dataFile, fs.constants.R_OK | fs.constants.W_OK);
+    await fs.access(paths.storageDir, fs.constants.R_OK | fs.constants.W_OK);
     await fs.access(paths.uploadDir, fs.constants.R_OK | fs.constants.W_OK);
     response.json({ ok: true, name: "MusTape API", storage: "ok" });
   } catch (error) {
