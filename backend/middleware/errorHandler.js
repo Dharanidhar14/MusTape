@@ -18,7 +18,7 @@ export function errorHandler(error, request, response, _next) {
     path: request.path,
     status,
     code: body.code,
-    message: error.message
+    ...(status < 500 ? { message: error.message } : { errorName: error.name, sysCode: error.code })
   });
 
   response.status(status).json(body);

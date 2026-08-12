@@ -183,7 +183,7 @@ export async function createTapeFromDraft(rawTape, files = []) {
   while (tapes.some((tape) => tape.shareId === shareId)) {
     shareId = crypto.randomBytes(5).toString("base64url");
   }
-  logger.info("tape.share_id.generated", { shareId });
+  logger.info("tape.share_id.generated");
 
   // Generate the management token once — never derived from shareId
   const managementToken = crypto.randomBytes(32).toString("base64url");
@@ -206,7 +206,6 @@ export async function createTapeFromDraft(rawTape, files = []) {
   await writeTapes(tapes);
   logger.info("tape.created", {
     tapeId: tape.id,
-    shareId: tape.shareId,
     songCount: tape.songs.length
     // managementToken intentionally NOT logged
   });
@@ -245,7 +244,6 @@ export async function updateTapeFromDraft(shareId, managementToken, rawTape, fil
   await writeTapes(tapes);
   logger.info("tape.updated", {
     tapeId: updatedTape.id,
-    shareId: updatedTape.shareId,
     songCount: updatedTape.songs.length
   });
 
@@ -291,8 +289,7 @@ export async function deleteTapeByManagementToken(shareId, managementToken) {
   const remainingTapes = tapes.filter((_, i) => i !== index);
   await writeTapes(remainingTapes);
   logger.info("tape.deleted", {
-    tapeId: tape.id,
-    shareId: tape.shareId
+    tapeId: tape.id
     // managementToken intentionally NOT logged
   });
 
