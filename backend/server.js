@@ -67,7 +67,7 @@ app.get("/health", async (_request, response) => {
     await fs.access(paths.uploadDir, fs.constants.R_OK | fs.constants.W_OK);
     response.json({ ok: true, name: "MusTape API", storage: "ok" });
   } catch (error) {
-    logger.error("health.storage_failed", { message: error.message });
+    logger.error("health.storage_failed", { errorName: error.name, sysCode: error.code });
     response.status(503).json({ ok: false, name: "MusTape API", storage: "unreachable" });
   }
 });

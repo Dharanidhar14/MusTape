@@ -1,5 +1,6 @@
 import { logger } from "../services/logger.js";
 import { toPublicError } from "../services/errors.js";
+import { safePath } from "./requestLogger.js";
 
 export function notFound(request, response) {
   response.status(404).json({
@@ -15,7 +16,7 @@ export function errorHandler(error, request, response, _next) {
   logger[status >= 500 ? "error" : "warn"]("request.error", {
     requestId: request.id,
     method: request.method,
-    path: request.path,
+    path: safePath(request.path),
     status,
     code: body.code,
     ...(status < 500 ? { message: error.message } : { errorName: error.name, sysCode: error.code })
