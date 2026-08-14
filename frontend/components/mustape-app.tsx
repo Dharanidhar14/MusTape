@@ -71,7 +71,7 @@ export function MusTapeApp() {
   const [error, setError] = useState("");
   const [shareLink, setShareLink] = useState("");
   const [savedShareId, setSavedShareId] = useState("");
-  // Management token is kept in state AND localStorage so it survives in the
+  // Management token is kept in state so it survives in the
   // management page URL — the sender is given the full /manage/:token URL.
   const [savedManagementToken, setSavedManagementToken] = useState("");
   const [copied, setCopied] = useState(false);
