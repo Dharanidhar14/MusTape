@@ -2,7 +2,7 @@
 
 MusTape is a memory preservation experience built around a private cassette-letter ritual. A sender composes a tape from songs and notes, seals it into a stable share link, and the receiver opens it as a quiet keepsake.
 
-Version: **3.0.2** — The Production Reliability Update.
+Version: **3.1.1** — Production Hardening & Security Pass.
 
 ## Product Principles
 
@@ -28,9 +28,10 @@ The frontend talks to the backend through `NEXT_PUBLIC_API_URL`. The backend per
 1. Sender writes recipient, title, note, and song memories in the composer.
 2. Sender adds Spotify/YouTube links or uploads local audio.
 3. Frontend sends multipart form data to the backend.
-4. Backend validates, normalizes, stores the tape, and returns `/tape/:shareId`.
+4. Backend validates, normalizes, stores the tape, and returns both a read-only `/tape/:shareId` and a secure `/manage/:managementToken`.
 5. Receiver page fetches the latest tape by `shareId`.
-6. Local songs stream from `/uploads`; external songs render official embeds.
+6. Sender uses the management URL to safely edit or delete the tape later.
+7. Local songs stream from `/uploads`; external songs render official embeds.
 
 ## Run Locally
 
@@ -92,6 +93,21 @@ MUSTAPE_RUNTIME_DIR=
 - Trusts Render's proxy so local-audio URLs are generated with HTTPS.
 - Supports persistent tape and upload storage through `MUSTAPE_RUNTIME_DIR`.
 - Adds structured request IDs and production-safe API errors.
+
+## v3.1.0 (Stabilization Pass 01)
+
+- **Separate management access:** The sender receives a secure, tokenized URL to edit/delete tapes. The receiver share link is completely read-only.
+- **Secure tape deletion:** Fully scrubs associated local audio uploads from the filesystem when a tape is deleted.
+- **Safe upload cleanup:** Safely removes orphaned local audio files when a sender replaces or drops a local song during an edit.
+- **Blob URL lifecycle:** Fixes memory leaks by correctly revoking `blob:` URLs when local songs are removed from the frontend composer.
+- **React Error Boundaries:** Adds a resilient frontend error boundary with a polished fallback UI that catches unexpected crashes without leaking stack traces.
+
+## v3.1.1 (Production Hardening & Data Persistence)
+
+- **Privacy-Safe Logging:** Sanitizes the backend request logger to redact management tokens (`/api/manage/[redacted]`) and prevents raw filesystem paths from leaking via health-check errors.
+- **Content-Security-Policy (CSP):** Enforces a strict CSP on the Next.js frontend, eliminating `unsafe-eval` in production and explicitly whitelisting API and embed origins.
+- **Render Persistent Disk:** Finalizes `render.yaml` configuration to properly mount and persist the `/data` directory across backend deployments.
+- **Security Documentation:** Audited frontend code and corrected misleading documentation regarding token storage (tokens are kept securely in memory state, not `localStorage`).
 
 ## Repository Hygiene
 
