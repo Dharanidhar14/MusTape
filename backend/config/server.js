@@ -38,6 +38,11 @@ if (nodeEnv === "production" && !googleClientId) {
   throw new Error("GOOGLE_CLIENT_ID is required in production.");
 }
 
+const dbUrl = process.env.DATABASE_URL || "postgresql://localhost:5432/mustape";
+if (nodeEnv === "production" && !process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is required in production.");
+}
+
 export const serverConfig = {
   nodeEnv,
   port: numberFromEnv("PORT", 5000),
@@ -46,5 +51,6 @@ export const serverConfig = {
   maxUploadSize: numberFromEnv("MAX_UPLOAD_SIZE_MB", 25) * 1024 * 1024,
   maxSongs: numberFromEnv("MAX_SONGS", 24),
   jsonLimit: process.env.JSON_LIMIT || "1mb",
-  googleClientId
+  googleClientId,
+  dbUrl
 };

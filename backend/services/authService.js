@@ -3,11 +3,9 @@ import { serverConfig } from "../config/server.js";
 import { logger } from "./logger.js";
 import { fail } from "./textService.js";
 import crypto from "node:crypto";
+import { query } from "../db/index.js";
 
 const client = new OAuth2Client(serverConfig.googleClientId);
-
-// Simple in-memory session store for Phase 2 (will be replaced by PG in Phase 3)
-const sessions = new Map();
 
 export async function verifyGoogleToken(idToken) {
   if (!idToken) {
@@ -37,27 +35,71 @@ export async function verifyGoogleToken(idToken) {
   }
 }
 
-export function createSession(googleUser) {
+export async function createSession(googleUser) {
+  // Upsert user
+  const userResult = await query(`
+    INSERT INTO users (google_sub, email, display_name, avatar_url, updated_at)
+    VALUES ($1, $2, $3, $4, NOW())
+    ON CONFLICT (google_sub) DO UPDATE 
+    SET email = EXCLUDED.email, display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url, updated_at = NOW()
+    RETURNING id, display_name, email, avatar_url, google_sub
+  `, [googleUser.sub, googleUser.email, googleUser.name, googleUser.picture]);
+
+  const user = userResult.rows[0];
+
   const sessionId = crypto.randomBytes(32).toString("base64url");
-  const session = {
+  const tokenHash = crypto.createHash('sha256').update(sessionId).digest('hex');
+  
+  // 30 days expiry
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  await query(`
+    INSERT INTO sessions (user_id, token_hash, expires_at)
+    VALUES ($1, $2, $3)
+  `, [user.id, tokenHash, expiresAt.toISOString()]);
+
+  return {
     id: sessionId,
-    googleSub: googleUser.sub,
-    email: googleUser.email,
-    name: googleUser.name,
-    picture: googleUser.picture,
-    createdAt: new Date().toISOString()
+    googleSub: user.google_sub,
+    email: user.email,
+    name: user.display_name,
+    picture: user.avatar_url
   };
-  sessions.set(sessionId, session);
-  return session;
 }
 
-export function getSession(sessionId) {
+export async function getSession(sessionId) {
   if (!sessionId) return null;
-  return sessions.get(sessionId) || null;
+  const tokenHash = crypto.createHash('sha256').update(sessionId).digest('hex');
+
+  const result = await query(`
+    SELECT s.expires_at, s.revoked_at, u.google_sub, u.email, u.display_name, u.avatar_url
+    FROM sessions s
+    JOIN users u ON s.user_id = u.id
+    WHERE s.token_hash = $1
+  `, [tokenHash]);
+
+  if (result.rowCount === 0) return null;
+
+  const row = result.rows[0];
+  if (row.revoked_at || new Date(row.expires_at) < new Date()) {
+    return null; // Expired or revoked
+  }
+
+  return {
+    googleSub: row.google_sub,
+    email: row.email,
+    name: row.display_name,
+    picture: row.avatar_url
+  };
 }
 
-export function destroySession(sessionId) {
-  if (sessionId) {
-    sessions.delete(sessionId);
-  }
+export async function destroySession(sessionId) {
+  if (!sessionId) return;
+  const tokenHash = crypto.createHash('sha256').update(sessionId).digest('hex');
+  
+  await query(`
+    UPDATE sessions
+    SET revoked_at = NOW()
+    WHERE token_hash = $1
+  `, [tokenHash]);
 }

@@ -16,7 +16,7 @@ router.post("/google", async (req, res, next) => {
   try {
     const { credential } = req.body;
     const googleUser = await verifyGoogleToken(credential);
-    const session = createSession(googleUser);
+    const session = await createSession(googleUser);
 
     res.cookie(COOKIE_NAME, session.id, cookieOptions);
     
@@ -34,30 +34,38 @@ router.post("/google", async (req, res, next) => {
   }
 });
 
-router.get("/me", (req, res) => {
-  const sessionId = req.cookies[COOKIE_NAME];
-  const session = getSession(sessionId);
+router.get("/me", async (req, res, next) => {
+  try {
+    const sessionId = req.cookies[COOKIE_NAME];
+    const session = await getSession(sessionId);
 
-  if (!session) {
-    return res.status(401).json({ ok: false, error: "Not authenticated" });
-  }
-
-  res.json({
-    ok: true,
-    user: {
-      id: session.googleSub,
-      name: session.name,
-      email: session.email,
-      picture: session.picture
+    if (!session) {
+      return res.status(401).json({ ok: false, error: "Not authenticated" });
     }
-  });
+
+    res.json({
+      ok: true,
+      user: {
+        id: session.googleSub,
+        name: session.name,
+        email: session.email,
+        picture: session.picture
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
-router.post("/logout", (req, res) => {
-  const sessionId = req.cookies[COOKIE_NAME];
-  destroySession(sessionId);
-  res.clearCookie(COOKIE_NAME, cookieOptions);
-  res.json({ ok: true });
+router.post("/logout", async (req, res, next) => {
+  try {
+    const sessionId = req.cookies[COOKIE_NAME];
+    await destroySession(sessionId);
+    res.clearCookie(COOKIE_NAME, cookieOptions);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

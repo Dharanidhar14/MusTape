@@ -76,14 +76,21 @@ app.get("/health", async (_request, response) => {
   }
 });
 
+import { initDb } from "./db/schema.js";
+
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(serverConfig.port, () => {
-  logger.info("server.ready", {
-    port: serverConfig.port,
-    environment: serverConfig.nodeEnv,
-    maxSongs: serverConfig.maxSongs,
-    maxUploadSizeMb: Math.round(serverConfig.maxUploadSize / 1024 / 1024)
+initDb().then(() => {
+  app.listen(serverConfig.port, () => {
+    logger.info("server.ready", {
+      port: serverConfig.port,
+      environment: serverConfig.nodeEnv,
+      maxSongs: serverConfig.maxSongs,
+      maxUploadSizeMb: Math.round(serverConfig.maxUploadSize / 1024 / 1024)
+    });
   });
+}).catch((err) => {
+  logger.error("db.init.failed", { error: err.message });
+  process.exit(1);
 });
