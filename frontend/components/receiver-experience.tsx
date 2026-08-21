@@ -84,7 +84,7 @@ export function ReceiverExperience({
                   transition={{ duration: motionTokens.durations.reveal, ease: motionTokens.gentleEase }}
                   className="grid gap-14"
                 >
-                  <div className="grid gap-14 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
+                  <div className="grid gap-14 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
                     <section className="max-w-2xl">
                       <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.58)] px-3 py-2 text-xs uppercase tracking-[0.18em] text-ink-500">
                         <Sparkles className="icon-svg h-3.5 w-3.5" />
@@ -112,7 +112,7 @@ export function ReceiverExperience({
 
                   <section className="letter-card rounded-[1.7rem] border p-7 sm:p-9" aria-labelledby="note-for-them">
                     <p id="note-for-them" className="font-display text-[clamp(2.35rem,4vw,4rem)] leading-none text-ink-900">
-                      A Note for Them
+                      Note for You
                     </p>
                     <p className="mt-7 max-w-3xl break-words text-xl leading-9 text-ink-600">
                       {tape.inscription}
@@ -212,7 +212,7 @@ function TapePlayer({
         <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--border))] pb-5">
           <div className="min-w-0">
             <p className={typographyTokens.caption}>Opened tape</p>
-            <h2 className="mt-3 break-words font-display text-4xl text-ink-900">{tape.recipient}</h2>
+            <h2 className="mt-3 break-words font-display text-4xl text-ink-900">{tape.title}</h2>
           </div>
           <CassetteTape className="icon-svg h-5 w-5 shrink-0 text-rosewood" />
         </div>

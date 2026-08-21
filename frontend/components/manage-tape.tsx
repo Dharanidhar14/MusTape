@@ -466,15 +466,15 @@ function ManageEditor({ tape, managementToken }: { tape: SavedTape; managementTo
           </div>
           <div className="grid gap-7">
             <div className="grid gap-6">
-              <ManageField label="Recipient" value={draft.recipient} placeholder="Who is this for?" onChange={(v) => updateDraft("recipient", v)} />
-              <ManageField label="Tape title" value={draft.title} placeholder="The night we kept driving" onChange={(v) => updateDraft("title", v)} />
+              <ManageField label="Recipient" value={draft.recipient} placeholder="Who am I making this for?" onChange={(v) => updateDraft("recipient", v)} />
+              <ManageField label="Tape Title" value={draft.title} placeholder="Give this tape a name" onChange={(v) => updateDraft("title", v)} />
               <label className="block">
                 <span className="mb-2 block text-sm text-ink-500">A Note for Them</span>
                 <textarea
                   value={draft.inscription}
                   onChange={(e) => updateDraft("inscription", e.target.value)}
                   rows={4}
-                  placeholder="Write the line that opens the tape."
+                  placeholder="Write the lines that opens the tape"
                   className="journal-field w-full resize-none rounded-[1.35rem] border px-6 py-5 text-lg leading-8 text-ink-800"
                 />
               </label>
@@ -615,14 +615,12 @@ function ManagePreview({ draft, currentSong, activeSong, reelsActive, localSrc, 
       }}
       className="relative mx-auto w-full max-w-2xl"
     >
-      <div className="absolute -left-6 top-12 hidden h-48 w-10 rounded-l-[2rem] bg-rosewood/80 lg:block" aria-hidden />
-      <Image src="/images/memory-strip.png" alt="A small archival strip of music memories" width={360} height={520} priority className="absolute -bottom-12 -right-9 z-0 hidden w-36 rotate-3 rounded-[1rem] border border-[rgb(var(--border))] object-cover shadow-object lg:block" />
       <div className="relative z-10 rounded-[2rem] border border-[rgb(var(--border))] bg-[rgb(var(--surface))] p-5 shadow-object shadow-insetpaper sm:p-7">
         <div className="rounded-[1.45rem] border border-[rgb(var(--border))] bg-[rgb(var(--paper-100))] p-5">
           <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--border))] pb-5">
             <div className="min-w-0">
-              <p className={typographyTokens.caption}>Side A / {String(activeSong + 1).padStart(2, "00")}</p>
-              <h2 className="mt-3 break-words font-display text-4xl leading-none text-ink-900">{draft.recipient || "Recipient"}</h2>
+              <p className={typographyTokens.caption}>Side A / {String(activeSong + 1).padStart(2, "0")}</p>
+              <h2 className="mt-3 break-words font-display text-4xl leading-none text-ink-900">{draft.title || "Tape Title"}</h2>
             </div>
             <span className="shrink-0 rounded-full bg-rosewood/15 px-3 py-1 text-xs text-rosewood">Editing</span>
           </div>
@@ -649,7 +647,9 @@ function ManagePreview({ draft, currentSong, activeSong, reelsActive, localSrc, 
                     <p className={typographyTokens.caption}>{currentSong.type === "spotify" ? "Spotify trace" : currentSong.type === "youtube" ? "YouTube trace" : "Local trace"}</p>
                     <h3 className="mt-2 break-words text-2xl font-medium text-ink-900">{currentSong.title}</h3>
                     {currentSong.artist ? <p className="mt-1 break-words text-sm text-ink-500">{currentSong.artist}</p> : null}
-                    <p className="mt-5 max-w-md break-words text-lg leading-8 text-ink-600">{currentSong.memory || "Add Memory / Add Note beside this song."}</p>
+                  {currentSong.memory ? (
+                    <p className="mt-5 max-w-md break-words text-lg leading-8 text-ink-600">{currentSong.memory}</p>
+                  ) : null}
                     {currentSong.type === "local" ? (
                       <div className="mt-5">{localSrc ? <LocalAudioPlayer src={localSrc} title={currentSong.title} onPlayingChange={onPlayingChange} /> : null}</div>
                     ) : (

@@ -33,6 +33,11 @@ if (nodeEnv === "production" && !configuredFrontendOrigin.startsWith("https://")
 const frontendOrigin = configuredFrontendOrigin || "http://localhost:3000";
 const allowedOrigins = [...new Set([frontendOrigin, ...originList(process.env.ALLOWED_ORIGINS)])];
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID || "";
+if (nodeEnv === "production" && !googleClientId) {
+  throw new Error("GOOGLE_CLIENT_ID is required in production.");
+}
+
 export const serverConfig = {
   nodeEnv,
   port: numberFromEnv("PORT", 5000),
@@ -40,5 +45,6 @@ export const serverConfig = {
   allowedOrigins,
   maxUploadSize: numberFromEnv("MAX_UPLOAD_SIZE_MB", 25) * 1024 * 1024,
   maxSongs: numberFromEnv("MAX_SONGS", 24),
-  jsonLimit: process.env.JSON_LIMIT || "1mb"
+  jsonLimit: process.env.JSON_LIMIT || "1mb",
+  googleClientId
 };

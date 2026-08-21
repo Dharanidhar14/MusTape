@@ -10,6 +10,8 @@ import { requestLogger } from "./middleware/requestLogger.js";
 import manageRouter from "./routes/manage.js";
 import tapesRouter from "./routes/tapes.js";
 import { logger } from "./services/logger.js";
+import cookieParser from "cookie-parser";
+import authRouter from "./routes/auth.js";
 
 const app = express();
 
@@ -56,7 +58,9 @@ const globalLimiter = rateLimit({
 
 app.use(globalLimiter);
 app.use(express.json({ limit: serverConfig.jsonLimit }));
+app.use(cookieParser());
 app.use("/uploads", express.static(paths.uploadDir));
+app.use("/api/auth", authRouter);
 app.use("/api/tapes", tapesRouter);
 app.use("/api/manage", manageRouter);
 
