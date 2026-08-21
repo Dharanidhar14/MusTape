@@ -335,3 +335,33 @@ export function buildManagementUrl(managementToken: string) {
   const path = `/manage/${managementToken}`;
   return baseUrl ? new URL(path, baseUrl).toString() : path;
 }
+
+// Auth API
+
+export async function loginWithGoogle(credential: string) {
+  const res = await fetch(`${apiBaseUrl}/api/auth/google`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ credential }),
+    credentials: "include"
+  });
+  if (!res.ok) throw new Error("Failed to login");
+  const data = await res.json();
+  return data.user;
+}
+
+export async function checkAuth() {
+  const res = await fetch(`${apiBaseUrl}/api/auth/me`, {
+    credentials: "include"
+  });
+  if (!res.ok) throw new Error("Not authenticated");
+  const data = await res.json();
+  return data.user;
+}
+
+export async function logout() {
+  await fetch(`${apiBaseUrl}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include"
+  });
+}

@@ -24,6 +24,42 @@ import {
 import Image from "next/image";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrandLogo } from "@/components/brand-logo";
+import { useAuth } from "@/lib/auth-context";
+import { GoogleLogin } from "@react-oauth/google";
+
+function AuthHeaderAction({ isSealing, savedShareId, sealTape }: { isSealing: boolean; savedShareId: string; sealTape: () => void }) {
+  const { user, login } = useAuth();
+  
+  if (user) {
+    return (
+      <a href="/workspace" className="button-lift touch-target inline-flex items-center gap-2 rounded-full bg-rosewood px-5 text-sm font-medium text-paper-100 hover:bg-ink-900">
+        Workspace
+      </a>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="hidden sm:block">
+        <GoogleLogin
+          onSuccess={(res) => { if (res.credential) login(res.credential) }}
+          shape="pill"
+          theme="outline"
+          size="medium"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={sealTape}
+        disabled={isSealing}
+        className="button-lift touch-target inline-flex items-center gap-2 rounded-full bg-ink-900 px-5 text-sm text-paper-100 hover:bg-rosewood disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <Share2 className="icon-svg h-4 w-4" />
+        <span className="hidden sm:inline">{isSealing ? "Saving" : savedShareId ? "Save tape" : "Seal tape"}</span>
+      </button>
+    </div>
+  );
+}
 import { EndingFooter } from "@/components/ending-footer";
 import { ExternalMediaEmbed } from "@/components/external-media-embed";
 import { LocalAudioPlayer } from "@/components/local-audio-player";
@@ -461,15 +497,8 @@ export function MusTapeApp() {
               >
                 {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </button>
-              <button
-                type="button"
-                onClick={sealTape}
-                disabled={isSealing}
-                className="button-lift touch-target inline-flex items-center gap-2 rounded-full bg-ink-900 px-5 text-sm text-paper-100 hover:bg-rosewood disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Share2 className="icon-svg h-4 w-4" />
-                <span className="hidden sm:inline">{isSealing ? "Saving" : savedShareId ? "Save tape" : "Seal tape"}</span>
-              </button>
+              
+              <AuthHeaderAction isSealing={isSealing} savedShareId={savedShareId} sealTape={sealTape} />
             </div>
           </header>
 
