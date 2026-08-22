@@ -2,6 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import { createTape, deleteTape, getTape, updateTape } from "../controllers/tapeController.js";
 import { uploadLocalSongs } from "../middleware/upload.js";
+import { optionalAuth } from "../middleware/optionalAuth.js";
 import { createHttpError } from "../services/errors.js";
 
 const router = express.Router();
@@ -31,9 +32,9 @@ function handleUpload(request, response, next) {
   });
 }
 
-router.post("/", strictLimiter, handleUpload, createTape);
-router.put("/:shareId", strictLimiter, handleUpload, updateTape);
-router.delete("/:shareId", strictLimiter, deleteTape);
+router.post("/", strictLimiter, optionalAuth, handleUpload, createTape);
+router.put("/:shareId", strictLimiter, optionalAuth, handleUpload, updateTape);
+router.delete("/:shareId", strictLimiter, optionalAuth, deleteTape);
 router.get("/:shareId", getTape);
 
 export default router;

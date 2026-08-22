@@ -227,12 +227,17 @@ function tapeFormData(draft: ComposerDraft) {
   return formData;
 }
 
-export async function createTape(draft: ComposerDraft): Promise<CreateTapeResult> {
+export async function createTape(draft: ComposerDraft, collectionId?: string): Promise<CreateTapeResult> {
   let response: Response;
   try {
+    const formData = tapeFormData(draft);
+    if (collectionId) {
+      formData.append("collectionId", collectionId);
+    }
     response = await fetch(`${apiBaseUrl}/api/tapes`, {
       method: "POST",
-      body: tapeFormData(draft)
+      body: formData,
+      credentials: "include"
     });
   } catch {
     throw new Error(apiUnavailableMessage(apiBaseUrl));
@@ -254,7 +259,8 @@ export async function updateTape(shareId: string, managementToken: string, draft
       headers: {
         "X-Management-Token": managementToken
       },
-      body: tapeFormData(draft)
+      body: tapeFormData(draft),
+      credentials: "include"
     });
   } catch {
     throw new Error(apiUnavailableMessage(apiBaseUrl));
@@ -275,7 +281,8 @@ export async function deleteTape(shareId: string, managementToken: string): Prom
       method: "DELETE",
       headers: {
         "X-Management-Token": managementToken
-      }
+      },
+      credentials: "include"
     });
   } catch {
     throw new Error(apiUnavailableMessage(apiBaseUrl));
@@ -285,6 +292,18 @@ export async function deleteTape(shareId: string, managementToken: string): Prom
   if (!response.ok) {
     throw new Error(userFacingApiError(body, "The tape could not be deleted."));
   }
+}
+
+// ... existing code down to deleteCollection ...
+
+export async function fetchCollectionTapes(collectionId: string): Promise<SavedTape[]> {
+  const res = await fetch(`${apiBaseUrl}/api/collections/${collectionId}/tapes`, {
+    credentials: "include",
+    cache: "no-store"
+  });
+  if (!res.ok) throw new Error("Failed to load tapes");
+  const data = await res.json();
+  return data.tapes;
 }
 
 export async function fetchTape(shareId: string): Promise<SavedTape> {

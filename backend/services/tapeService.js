@@ -27,7 +27,14 @@ export function publicTape(tape, request) {
   };
 }
 
-export function verifyManagementToken(tape, token) {
+export async function verifyManagementToken(tape, token, userId) {
+  if (userId && tape.collection_id) {
+    const colRes = await query(`SELECT user_id FROM collections WHERE id = $1`, [tape.collection_id]);
+    if (colRes.rowCount > 0 && colRes.rows[0].user_id === userId) {
+      return; // Authorized via account ownership
+    }
+  }
+
   if (!token) fail("This action requires a valid management link.", 403, "MUSTAPE_UNAUTHORIZED");
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   if (tokenHash !== tape.management_token_hash) {
@@ -181,7 +188,15 @@ function mapTapeRow(row, songsRows) {
   };
 }
 
-export async function createTapeFromDraft(rawTape, files = [], collectionId = null) {
+export async function createTapeFromDraft(rawTape, files = [], collectionId = null, userId = null) {
+  if (collectionId) {
+    if (!userId) fail("You must be signed in to add a tape to a collection.", 401);
+    const colRes = await query(`SELECT user_id FROM collections WHERE id = $1`, [collectionId]);
+    if (colRes.rowCount === 0 || colRes.rows[0].user_id !== userId) {
+      fail("Collection not found or access denied.", 403);
+    }
+  }
+
   const draft = parseDraft(rawTape);
   const { recipient, title, inscription, senderNote, songs } = validateDraftFields(draft);
   const normalizedSongs = await normalizeSongs(songs, files);
@@ -248,11 +263,11 @@ export async function findTapeByManagementToken(token) {
   return mapped;
 }
 
-export async function updateTapeFromDraft(shareId, managementToken, rawTape, files = []) {
+export async function updateTapeFromDraft(shareId, managementToken, rawTape, files = [], userId = null) {
   const currentTape = await findTapeByShareId(shareId);
   if (!currentTape) fail("This tape could not be found.", 404);
   
-  verifyManagementToken(currentTape, managementToken);
+  await verifyManagementToken(currentTape, managementToken, userId);
   
   const draft = parseDraft(rawTape);
   const { recipient, title, inscription, senderNote, songs } = validateDraftFields(draft);
@@ -309,11 +324,11 @@ export async function updateTapeFromDraft(shareId, managementToken, rawTape, fil
   return mapped;
 }
 
-export async function deleteTapeByManagementToken(shareId, managementToken) {
+export async function deleteTapeByManagementToken(shareId, managementToken, userId = null) {
   const tape = await findTapeByShareId(shareId);
   if (!tape) fail("This tape could not be found.", 404);
 
-  verifyManagementToken(tape, managementToken);
+  await verifyManagementToken(tape, managementToken, userId);
 
   const localFilesToDelete = [...localFileNamesFromSongs(tape.songs)];
 

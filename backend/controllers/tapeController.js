@@ -7,13 +7,21 @@ import {
   updateTapeFromDraft
 } from "../services/tapeService.js";
 import { fail } from "../services/textService.js";
+import { query } from "../db/index.js";
+
+async function getInternalUserId(req) {
+  if (!req.user?.googleSub) return null;
+  const res = await query("SELECT id FROM users WHERE google_sub = $1", [req.user.googleSub]);
+  return res.rowCount > 0 ? res.rows[0].id : null;
+}
 
 export async function createTape(request, response, next) {
   try {
-    const tape = await createTapeFromDraft(request.body.tape, request.files || []);
+    const userId = await getInternalUserId(request);
+    const collectionId = request.body.collectionId || null;
+    
+    const tape = await createTapeFromDraft(request.body.tape, request.files || [], collectionId, userId);
 
-    // managementToken is returned ONLY in the creation response so the frontend
-    // can build the management URL. It is never returned again after this point.
     response.status(201).json({
       tape: publicTape(tape, request),
       shareUrl: `/tape/${tape.shareId}`,
@@ -27,10 +35,7 @@ export async function createTape(request, response, next) {
 export async function getTape(request, response, next) {
   try {
     const tape = await findTapeByShareId(request.params.shareId);
-
     if (!tape) fail("This tape could not be found.", 404);
-
-    // publicTape() always strips managementToken — receiver never sees it
     response.json({ tape: publicTape(tape, request) });
   } catch (error) {
     next(error);
@@ -39,18 +44,19 @@ export async function getTape(request, response, next) {
 
 export async function updateTape(request, response, next) {
   try {
+    const userId = await getInternalUserId(request);
     const managementToken = request.headers["x-management-token"] || "";
     const tape = await updateTapeFromDraft(
       request.params.shareId,
       managementToken,
       request.body.tape,
-      request.files || []
+      request.files || [],
+      userId
     );
 
     response.json({
       tape: publicTape(tape, request),
       shareUrl: `/tape/${tape.shareId}`
-      // managementToken is NOT returned on updates — it never changes
     });
   } catch (error) {
     next(error);
@@ -59,8 +65,9 @@ export async function updateTape(request, response, next) {
 
 export async function deleteTape(request, response, next) {
   try {
+    const userId = await getInternalUserId(request);
     const managementToken = request.headers["x-management-token"] || "";
-    await deleteTapeByManagementToken(request.params.shareId, managementToken);
+    await deleteTapeByManagementToken(request.params.shareId, managementToken, userId);
     response.json({ ok: true, message: "The tape has been destroyed." });
   } catch (error) {
     next(error);

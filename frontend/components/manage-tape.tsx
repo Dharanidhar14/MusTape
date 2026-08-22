@@ -104,18 +104,21 @@ function savedTapeToDraft(tape: SavedTape): ComposerDraft {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ManageTape({ managementToken }: { managementToken: string }) {
+export function ManageTape({ managementToken, shareId }: { managementToken?: string; shareId?: string }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [tape, setTape] = useState<SavedTape | null>(null);
 
   useEffect(() => {
     let alive = true;
-    fetchManageTape(managementToken)
+    
+    const fetcher = managementToken ? fetchManageTape(managementToken) : fetchTape(shareId!);
+    
+    fetcher
       .then((t) => { if (alive) { setTape(t); setLoading(false); } })
-      .catch((err) => { if (alive) { setLoadError(err instanceof Error ? err.message : "This management link could not be found."); setLoading(false); } });
+      .catch((err) => { if (alive) { setLoadError(err instanceof Error ? err.message : "This tape could not be found."); setLoading(false); } });
     return () => { alive = false; };
-  }, [managementToken]);
+  }, [managementToken, shareId]);
 
   if (loading) {
     return (
@@ -136,7 +139,7 @@ export function ManageTape({ managementToken }: { managementToken: string }) {
         <section className="paper-grain cinematic-room grid min-h-screen place-items-center px-5 py-10">
           <div className="relative z-10 mx-auto max-w-xl rounded-[2rem] border border-oxblood/30 bg-[rgb(var(--surface)/0.78)] p-8 text-center shadow-object">
             <p className="font-display text-4xl text-ink-900">The envelope is quiet.</p>
-            <p className="mt-4 leading-7 text-ink-500">{loadError || "This management link could not be found."}</p>
+            <p className="mt-4 leading-7 text-ink-500">{loadError || "This tape could not be found."}</p>
             <NextLink href="/" className="touch-target mt-7 inline-flex items-center justify-center rounded-full bg-rosewood px-5 text-sm text-paper-100 transition hover:bg-ink-900">
               Return
             </NextLink>
@@ -150,7 +153,7 @@ export function ManageTape({ managementToken }: { managementToken: string }) {
     <ErrorBoundary label="Something slipped while loading the management studio.">
       <ManageEditor
         tape={tape}
-        managementToken={managementToken}
+        managementToken={managementToken || ""}
       />
     </ErrorBoundary>
   );

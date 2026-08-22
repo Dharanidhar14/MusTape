@@ -53,6 +53,28 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
+router.get("/:id/tapes", async (req, res, next) => {
+  try {
+    const userResult = await query("SELECT id FROM users WHERE google_sub = $1", [req.user.googleSub]);
+    if (userResult.rowCount === 0) return res.status(401).json({ error: "User not found" });
+
+    // Verify ownership
+    const collection = await getCollectionById(userResult.rows[0].id, req.params.id);
+    
+    // Fetch tapes (shallow, without songs to save bandwidth for lists)
+    const tapesResult = await query(`
+      SELECT share_id, title, recipient, created_at, updated_at
+      FROM tapes
+      WHERE collection_id = $1
+      ORDER BY created_at DESC
+    `, [collection.id]);
+
+    res.json({ ok: true, tapes: tapesResult.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.put("/:id", async (req, res, next) => {
   try {
     const userResult = await query("SELECT id FROM users WHERE google_sub = $1", [req.user.googleSub]);

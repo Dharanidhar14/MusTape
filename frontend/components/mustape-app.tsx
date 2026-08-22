@@ -93,7 +93,7 @@ const emptyDraft: ComposerDraft = {
   songs: []
 };
 
-export function MusTapeApp() {
+export function MusTapeApp({ collectionId }: { collectionId?: string } = {}) {
   const [draft, setDraft] = useState<ComposerDraft>(emptyDraft);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [spotifyUrl, setSpotifyUrl] = useState("");
@@ -374,7 +374,7 @@ export function MusTapeApp() {
         setShareLink(result.shareUrl);
       } else {
         // Create new tape — receive management token once
-        const result = await createTape(draft);
+        const result = await createTape(draft, collectionId);
         setSavedShareId(result.tape.shareId);
         setSavedManagementToken(result.managementToken);
         setShareLink(result.shareUrl);
