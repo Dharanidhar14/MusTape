@@ -3,8 +3,10 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Plus, Disc3, Trash2, Edit3, Settings } from "lucide-react";
+import { ChevronLeft, Plus, Disc3, Trash2, Settings, ArrowRight } from "lucide-react";
 import { fetchCollection, fetchCollectionTapes, deleteTape, type Collection, type SavedTape } from "@/lib/mustape";
+import { motion } from "framer-motion";
+import { motionTokens } from "@/lib/design-tokens";
 
 export default function CollectionPage() {
   const params = useParams();
@@ -40,63 +42,67 @@ export default function CollectionPage() {
   if (!collection) return <div className="text-oxblood">Collection not found.</div>;
 
   return (
-    <div className="max-w-5xl">
-      <div className="mb-8">
-        <Link href="/workspace" className="inline-flex items-center gap-2 text-sm text-ink-500 hover:text-rosewood">
-          <ChevronLeft className="h-4 w-4" />
-          Back to Collections
+    <div className="max-w-6xl">
+      <div className="mb-10">
+        <Link href="/workspace" className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-ink-400 hover:text-rosewood transition">
+          <ChevronLeft className="h-3.5 w-3.5" />
+          Collections
         </Link>
       </div>
 
-      <header className="mb-12">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="font-display text-5xl text-ink-900">{collection.name}</h1>
-            {collection.recipient_name && (
-              <p className="mt-2 text-lg text-ink-500">For {collection.recipient_name}</p>
-            )}
-            {collection.description && (
-              <p className="mt-4 max-w-2xl text-ink-600 leading-relaxed">{collection.description}</p>
-            )}
-          </div>
-          <Link href={`/workspace/collections/${collection.id}/compose`} className="button-lift touch-target inline-flex items-center gap-2 rounded-full bg-rosewood px-6 py-2.5 text-sm font-medium text-paper-100 hover:bg-ink-900">
-            <Plus className="h-4 w-4" />
-            Create Tape
-          </Link>
+      <header className="mb-14 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between border-b border-[rgb(var(--border))] pb-10">
+        <div>
+          <h1 className="font-display text-[3.5rem] leading-[0.95] tracking-tight text-ink-900">{collection.name}</h1>
+          {collection.recipient_name && (
+            <p className="mt-3 text-sm uppercase tracking-widest text-ink-500">For {collection.recipient_name}</p>
+          )}
+          {collection.description && (
+            <p className="mt-5 max-w-2xl text-[1.1rem] text-ink-600 leading-relaxed">{collection.description}</p>
+          )}
         </div>
+        <Link href={`/workspace/collections/${collection.id}/compose`} className="button-lift touch-target inline-flex shrink-0 items-center gap-2 rounded-full bg-rosewood px-6 py-3 text-sm font-medium text-paper-100 hover:bg-ink-900">
+          <Plus className="h-4 w-4" />
+          Create Tape
+        </Link>
       </header>
 
       <div>
-        <h2 className="mb-6 font-display text-2xl text-ink-900">Tapes ({tapes.length})</h2>
+        <h2 className="mb-6 font-display text-3xl text-ink-900">Tapes <span className="text-ink-400">({tapes.length})</span></h2>
         {tapes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[rgb(var(--border))] py-20 text-ink-400">
-            <Disc3 className="mb-4 h-8 w-8 opacity-50" />
-            <p>No tapes in this collection yet.</p>
+          <div className="flex flex-col items-center justify-center rounded-[2rem] border border-dashed border-[rgb(var(--border))] bg-paper-100/50 py-24 text-ink-400">
+            <Disc3 className="mb-4 h-10 w-10 opacity-40" />
+            <p className="text-lg">No tapes in this collection yet.</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {tapes.map(tape => (
-              <div key={tape.shareId} className="group relative flex flex-col justify-between rounded-xl border border-[rgb(var(--border))] bg-paper-100 p-5 shadow-sm hover:border-brass transition">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {tapes.map((tape, i) => (
+              <motion.div
+                key={tape.shareId}
+                initial={{ opacity: 0, scale: 0.98, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: i * 0.05, duration: motionTokens.durations.calm, ease: "easeOut" }}
+                className="group relative flex flex-col justify-between rounded-[2rem] border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.6)] p-7 shadow-insetpaper hover:border-brass transition"
+              >
                 <div>
-                  <h3 className="font-display text-xl text-ink-900 truncate">{tape.title}</h3>
-                  <p className="mt-1 text-xs uppercase tracking-wider text-ink-400">
-                    {new Date(tape.createdAt).toLocaleDateString()}
+                  <h3 className="font-display text-2xl text-ink-900 truncate leading-none">{tape.title}</h3>
+                  <p className="mt-3 text-xs uppercase tracking-[0.18em] text-ink-400">
+                    {new Date(tape.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 </div>
-                <div className="mt-6 flex items-center justify-between border-t border-[rgb(var(--border))] pt-4">
-                  <a href={`/tape/${tape.shareId}`} target="_blank" rel="noreferrer" className="text-sm font-medium text-ink-600 hover:text-rosewood">
-                    Open Tape
+                <div className="mt-8 flex items-center justify-between border-t border-[rgb(var(--border))] pt-5">
+                  <a href={`/tape/${tape.shareId}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-600 hover:text-rosewood transition-all group-hover:gap-2">
+                    Open <ArrowRight className="h-3.5 w-3.5" />
                   </a>
-                  <div className="flex items-center gap-2">
-                    <a href={`/workspace/collections/${collection.id}/tapes/${tape.shareId}/edit`} className="p-1.5 text-ink-400 hover:text-ink-900" title="Edit Tape">
+                  <div className="flex items-center gap-1">
+                    <a href={`/workspace/collections/${collection.id}/tapes/${tape.shareId}/edit`} className="button-lift rounded-full p-2 text-ink-400 hover:bg-paper-200 hover:text-ink-900" title="Edit Tape">
                       <Settings className="h-4 w-4" />
                     </a>
-                    <button onClick={() => handleDeleteTape(tape.shareId)} className="p-1.5 text-ink-400 hover:text-oxblood" title="Delete Tape">
+                    <button onClick={() => handleDeleteTape(tape.shareId)} className="button-lift rounded-full p-2 text-ink-400 hover:bg-oxblood/10 hover:text-oxblood" title="Delete Tape">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
