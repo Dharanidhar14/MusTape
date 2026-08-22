@@ -12,6 +12,7 @@ import tapesRouter from "./routes/tapes.js";
 import { logger } from "./services/logger.js";
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.js";
+import collectionsRouter from "./routes/collections.js";
 
 const app = express();
 
@@ -61,6 +62,7 @@ app.use(express.json({ limit: serverConfig.jsonLimit }));
 app.use(cookieParser());
 app.use("/uploads", express.static(paths.uploadDir));
 app.use("/api/auth", authRouter);
+app.use("/api/collections", collectionsRouter);
 app.use("/api/tapes", tapesRouter);
 app.use("/api/manage", manageRouter);
 

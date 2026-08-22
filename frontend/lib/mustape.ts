@@ -365,3 +365,56 @@ export async function logout() {
     credentials: "include"
   });
 }
+
+// Collection API
+
+export type Collection = {
+  id: string;
+  name: string;
+  recipient_name: string;
+  recipient_email: string;
+  sender_name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchCollections(): Promise<Collection[]> {
+  const res = await fetch(`${apiBaseUrl}/api/collections`, {
+    credentials: "include",
+    cache: "no-store"
+  });
+  if (!res.ok) throw new Error("Failed to load collections");
+  const data = await res.json();
+  return data.collections;
+}
+
+export async function fetchCollection(id: string): Promise<Collection> {
+  const res = await fetch(`${apiBaseUrl}/api/collections/${id}`, {
+    credentials: "include",
+    cache: "no-store"
+  });
+  if (!res.ok) throw new Error("Failed to load collection");
+  const data = await res.json();
+  return data.collection;
+}
+
+export async function createCollection(data: Partial<Collection>): Promise<Collection> {
+  const res = await fetch(`${apiBaseUrl}/api/collections`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    credentials: "include"
+  });
+  if (!res.ok) throw new Error("Failed to create collection");
+  const result = await res.json();
+  return result.collection;
+}
+
+export async function deleteCollection(id: string): Promise<void> {
+  const res = await fetch(`${apiBaseUrl}/api/collections/${id}`, {
+    method: "DELETE",
+    credentials: "include"
+  });
+  if (!res.ok) throw new Error("Failed to delete collection");
+}
