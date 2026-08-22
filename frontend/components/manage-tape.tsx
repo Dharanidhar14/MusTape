@@ -41,6 +41,7 @@ import {
   extractSpotifyTrackId,
   extractYouTubeVideoId,
   fetchManageTape,
+  fetchTape,
   newClientId,
   updateTape,
   validateAudioFile,
