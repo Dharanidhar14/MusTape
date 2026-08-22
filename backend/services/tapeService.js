@@ -340,3 +340,25 @@ export async function deleteTapeByManagementToken(shareId, managementToken, user
     await deleteLocalFiles(localFilesToDelete);
   }
 }
+
+export async function claimTape(managementToken, collectionId, userId) {
+  const tape = await findTapeByManagementToken(managementToken);
+  if (!tape) fail("This management link could not be found or has expired.", 404);
+
+  // Check if it's already claimed
+  if (tape.collection_id) {
+    fail("This tape is already claimed by an account.", 403);
+  }
+
+  // Verify the user owns the collection
+  const colRes = await query(`SELECT user_id FROM collections WHERE id = $1`, [collectionId]);
+  if (colRes.rowCount === 0 || colRes.rows[0].user_id !== userId) {
+    fail("Collection not found or access denied.", 403);
+  }
+
+  // Update the tape to belong to the collection
+  await query(`UPDATE tapes SET collection_id = $1, updated_at = NOW() WHERE id = $2`, [collectionId, tape.id]);
+  logger.info("tape.claimed", { tapeId: tape.id, collectionId, userId });
+
+  return tape.share_id;
+}

@@ -32,10 +32,15 @@ export default function WorkspacePage() {
           <h1 className="font-display text-4xl text-ink-900">My Collections</h1>
           <p className="mt-2 text-ink-500">Organize your tapes into quiet spaces.</p>
         </div>
-        <Link href="/workspace/new" className="button-lift touch-target inline-flex items-center gap-2 rounded-full bg-rosewood px-5 text-sm font-medium text-paper-100 hover:bg-ink-900">
-          <Plus className="h-4 w-4" />
-          New Collection
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/workspace/claim" className="button-lift touch-target inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border))] bg-paper-100 px-5 text-sm font-medium text-ink-700 hover:border-brass hover:text-ink-900">
+            Import Tape
+          </Link>
+          <Link href="/workspace/new" className="button-lift touch-target inline-flex items-center gap-2 rounded-full bg-rosewood px-5 text-sm font-medium text-paper-100 hover:bg-ink-900">
+            <Plus className="h-4 w-4" />
+            New Collection
+          </Link>
+        </div>
       </header>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

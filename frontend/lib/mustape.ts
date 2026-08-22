@@ -437,3 +437,19 @@ export async function deleteCollection(id: string): Promise<void> {
   });
   if (!res.ok) throw new Error("Failed to delete collection");
 }
+
+export async function claimTape(managementToken: string, collectionId: string): Promise<string> {
+  const res = await fetch(`${apiBaseUrl}/api/manage/${encodeURIComponent(managementToken)}/claim`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ collectionId }),
+    credentials: "include"
+  });
+  
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(userFacingApiError(body, "The tape could not be claimed."));
+  }
+  
+  return body.shareId;
+}
