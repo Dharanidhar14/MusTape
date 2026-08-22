@@ -93,9 +93,6 @@ export default function ClaimTapePage() {
           {collections.length === 0 ? (
             <div className="mt-2 text-sm text-oxblood">
               You don&apos;t have any collections yet. <Link href="/workspace/new" className="underline">Create one first</Link>.
-              <p className="text-gray-400 text-sm mt-4 text-center max-w-sm">
-                Can&apos;t find your management link? If you created it on this device, it might still be in your local browser history.
-              </p>
             </div>
           ) : (
             <select
